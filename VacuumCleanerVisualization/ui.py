@@ -1,0 +1,274 @@
+import tkinter as tk
+from tkinter import ttk
+from constants import *
+from algorithms import bfs1, bfs2, dfs1, dfs2
+import time
+import threading
+
+class AccordionMenu(tk.Frame):
+    def __init__(self, master, title, options, var, **kwargs):
+        super().__init__(master, bg=COLOR_BG_SIDEBAR, **kwargs)
+        self.var = var
+        self.options = options
+        self.is_expanded = False
+        
+        # Nút tiêu đề của nhóm
+        self.btn_header = tk.Button(self, text=f"▶ {title}", anchor="w", 
+                                    bg="#444444", fg="white", activebackground="#555555", activeforeground="white",
+                                    relief="flat", font=("Arial", 9, "bold"),
+                                    command=self.toggle)
+        self.btn_header.pack(fill="x", pady=(5,0))
+        
+        # Khu vực chứa nội dung sổ xuống
+        self.content_frame = tk.Frame(self, bg=COLOR_BG_SIDEBAR)
+        
+        self.radio_buttons = []
+        for opt in options:
+            rb = tk.Radiobutton(self.content_frame, text=opt, variable=self.var, value=opt,
+                                bg=COLOR_BG_SIDEBAR, fg="white", selectcolor="#444444",
+                                activebackground=COLOR_BG_SIDEBAR, activeforeground="white",
+                                font=("Arial", 9))
+            self.radio_buttons.append(rb)
+
+    def toggle(self):
+        if self.is_expanded:
+            self.content_frame.pack_forget()
+            self.btn_header.configure(text=self.btn_header.cget("text").replace("▼", "▶"))
+        else:
+            self.content_frame.pack(fill="x", padx=(20, 0), pady=5)
+            for rb in self.radio_buttons:
+                rb.pack(anchor="w", pady=2)
+            self.btn_header.configure(text=self.btn_header.cget("text").replace("▶", "▼"))
+        self.is_expanded = not self.is_expanded
+
+
+class VacuumApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Vacuum Cleaner AI Visualization")
+        self.geometry("1100x650")
+        self.configure(bg=COLOR_BG_MAIN)
+        
+        # Cấu hình grid chính
+        self.grid_columnconfigure(0, weight=1, uniform="equal_cols") # Sidebar
+        self.grid_columnconfigure(1, weight=3, uniform="equal_cols") # Main
+        self.grid_columnconfigure(2, weight=2, uniform="equal_cols") # Right log
+        self.grid_rowconfigure(0, weight=1)
+        
+        self.is_running = False
+        
+        self.initial_environment = (
+            ("Dirty", "Clean", "Dirty"),
+            ("Clean", "Dirty", "Dirty"),
+            ("Dirty", "Clean", "Clean")
+        )
+        self.initial_x, self.initial_y = 1, 1
+        
+        # State để vẽ
+        self.env_list = [list(row) for row in self.initial_environment]
+        self.vac_x, self.vac_y = self.initial_x, self.initial_y
+        
+        self.setup_sidebar()
+        self.setup_main_area()
+        self.setup_action_log()
+        
+        self.draw_grid()
+
+    def setup_sidebar(self):
+        self.sidebar = tk.Frame(self, bg=COLOR_BG_SIDEBAR)
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        
+        lbl_title = tk.Label(self.sidebar, text="Algorithm Selection", font=("Arial", 14, "bold"), bg=COLOR_BG_SIDEBAR, fg="white")
+        lbl_title.pack(pady=(10, 10), padx=10)
+        
+        self.algo_var = tk.StringVar(value="BFS 1 (Cơ bản)")
+        
+        self.acc_bfs = AccordionMenu(self.sidebar, "BFS (Breadth-First)", ["BFS 1 (Cơ bản)", "BFS 2 (Tối ưu)"], self.algo_var)
+        self.acc_bfs.pack(fill="x", padx=10, pady=5)
+        self.acc_bfs.toggle() # Mở sẵn BFS
+        
+        self.acc_dfs = AccordionMenu(self.sidebar, "DFS (Depth-First)", ["DFS 1 (Cơ bản)", "DFS 2 (Tối ưu)"], self.algo_var)
+        self.acc_dfs.pack(fill="x", padx=10, pady=5)
+        
+        self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
+                                   activebackground="#388E3C", activeforeground="white", font=("Arial", 11, "bold"),
+                                   relief="flat", command=self.start_simulation)
+        self.btn_start.pack(pady=(20, 10), padx=10, fill="x", ipady=5)
+        
+        self.btn_reset = tk.Button(self.sidebar, text="Reset", bg=COLOR_BTN_RESET, fg="white", 
+                                   activebackground="#D32F2F", activeforeground="white", font=("Arial", 11, "bold"),
+                                   relief="flat", command=self.reset_simulation)
+        self.btn_reset.pack(pady=5, padx=10, fill="x", ipady=5)
+        
+        lbl_speed = tk.Label(self.sidebar, text="Animation Speed", bg=COLOR_BG_SIDEBAR, fg="white", font=("Arial", 9))
+        lbl_speed.pack(pady=(20, 0))
+        self.slider_speed = ttk.Scale(self.sidebar, from_=0.1, to=4.0, orient="horizontal")
+        self.slider_speed.set(1.0)
+        self.slider_speed.pack(pady=10, padx=20, fill="x")
+
+    def setup_main_area(self):
+        self.main_area = tk.Frame(self, bg=COLOR_BG_MAIN)
+        self.main_area.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        
+        self.main_area.grid_rowconfigure(0, weight=4)
+        self.main_area.grid_rowconfigure(1, weight=1)
+        self.main_area.grid_columnconfigure(0, weight=1)
+        
+        # Khu vực vẽ lưới
+        self.canvas_frame = tk.Frame(self.main_area, bg=COLOR_BG_MAIN)
+        self.canvas_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+        
+        self.canvas = tk.Canvas(self.canvas_frame, bg=COLOR_BG_MAIN, highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True)
+        
+        # Bắt sự kiện resize để vẽ lại grid cho vừa
+        self.canvas.bind("<Configure>", lambda e: self.draw_grid())
+        
+        # Khu vực Final Solution
+        self.solution_frame = tk.Frame(self.main_area, bg=COLOR_BG_MAIN)
+        self.solution_frame.grid(row=1, column=0, sticky="nsew")
+        
+        lbl_sol = tk.Label(self.solution_frame, text="Final Solution", font=("Arial", 12, "bold"), bg=COLOR_BG_MAIN)
+        lbl_sol.pack(pady=5)
+        
+        self.txt_solution = tk.Text(self.solution_frame, width=1, height=1, font=("Consolas", 10), bg="white", fg="black", relief="solid", bd=1)
+        self.txt_solution.pack(fill="both", expand=True)
+        self.txt_solution.configure(state="disabled")
+
+    def setup_action_log(self):
+        self.log_frame = tk.Frame(self, bg=COLOR_BG_MAIN)
+        self.log_frame.grid(row=0, column=2, sticky="nsew", padx=(0, 20), pady=20)
+        
+        lbl_log = tk.Label(self.log_frame, text="ACTION LOG", font=("Arial", 12, "bold"), bg=COLOR_BG_MAIN)
+        lbl_log.pack(pady=10)
+        
+        self.txt_log = tk.Text(self.log_frame, width=1, height=1, font=("Consolas", 9), bg="white", fg="black", relief="solid", bd=1)
+        self.txt_log.pack(fill="both", expand=True)
+        self.txt_log.configure(state="disabled")
+
+    def log(self, message):
+        self.txt_log.configure(state="normal")
+        self.txt_log.insert("end", message + "\n")
+        self.txt_log.see("end")
+        self.txt_log.configure(state="disabled")
+        
+    def set_solution_text(self, text):
+        self.txt_solution.configure(state="normal")
+        self.txt_solution.delete("1.0", "end")
+        self.txt_solution.insert("end", text)
+        self.txt_solution.configure(state="disabled")
+
+    def draw_grid(self):
+        self.canvas.delete("all")
+        self.update_idletasks()
+        
+        width = self.canvas.winfo_width()
+        height = self.canvas.winfo_height()
+        
+        if width <= 1 or height <= 1:
+            return
+            
+        cell_w = width / GRID_SIZE
+        cell_h = height / GRID_SIZE
+        
+        for r in range(GRID_SIZE):
+            for c in range(GRID_SIZE):
+                x0 = c * cell_w
+                y0 = r * cell_h
+                x1 = x0 + cell_w
+                y1 = y0 + cell_h
+                
+                bg_color = COLOR_DIRTY_CELL if self.env_list[r][c] == "Dirty" else COLOR_CLEAN_CELL
+                self.canvas.create_rectangle(x0, y0, x1, y1, fill=bg_color, outline="white", width=2)
+                
+                text = "Bẩn" if self.env_list[r][c] == "Dirty" else "Sạch"
+                font_size = max(8, int(min(cell_w, cell_h) / 8))
+                self.canvas.create_text((x0+x1)/2, (y0+y1)/2 - font_size, text=text, font=("Arial", font_size, "bold"), fill="#222222")
+                
+                # Vẽ robot
+                if r == self.vac_x and c == self.vac_y:
+                    radius = min(cell_w, cell_h) / 5
+                    cx, cy = (x0+x1)/2, (y0+y1)/2 + font_size
+                    robot_font = max(6, int(font_size * 0.7))
+                    self.canvas.create_oval(cx-radius, cy-radius, cx+radius, cy+radius, fill=COLOR_VACUUM, outline="#C4A000", width=3)
+                    self.canvas.create_text(cx, cy, text="AI", font=("Arial", robot_font, "bold"), fill="black")
+
+    def reset_simulation(self):
+        self.is_running = False
+        self.env_list = [list(row) for row in self.initial_environment]
+        self.vac_x, self.vac_y = self.initial_x, self.initial_y
+        
+        self.txt_log.configure(state="normal")
+        self.txt_log.delete("1.0", "end")
+        self.txt_log.configure(state="disabled")
+        
+        self.set_solution_text("")
+        self.draw_grid()
+        self.btn_start.configure(state="normal")
+
+    def start_simulation(self):
+        if self.is_running: return
+        self.reset_simulation()
+        self.is_running = True
+        self.btn_start.configure(state="disabled")
+        
+        # Chạy thuật toán trong luồng riêng để UI không bị đơ
+        threading.Thread(target=self.run_algorithm, daemon=True).start()
+        
+    def run_algorithm(self):
+        initial_state = (self.initial_environment, self.initial_x, self.initial_y)
+        algo = self.algo_var.get()
+        
+        self.log(f"--- Bắt đầu mô phỏng: {algo} ---")
+        
+        path = []
+        if algo == "BFS 1 (Cơ bản)":
+            path = bfs1(initial_state)
+        elif algo == "BFS 2 (Tối ưu)":
+            path = bfs2(initial_state)
+        elif algo == "DFS 1 (Cơ bản)":
+            path = dfs1(initial_state)
+        elif algo == "DFS 2 (Tối ưu)":
+            path = dfs2(initial_state)
+        else:
+            self.log("Thuật toán đang được phát triển...")
+            self.is_running = False
+            self.after(0, lambda: self.btn_start.configure(state="normal"))
+            return
+            
+        if path is None:
+            self.log("Không tìm thấy đường đi.")
+            self.is_running = False
+            self.after(0, lambda: self.btn_start.configure(state="normal"))
+            return
+            
+        self.set_solution_text(" -> ".join(path))
+        self.log(f"Đã tìm thấy giải pháp gồm {len(path)} bước.")
+        self.log("Bắt đầu di chuyển...")
+        
+        # Mô phỏng từng bước
+        for i, action in enumerate(path):
+            if not self.is_running: break
+            
+            # Slider speed logic
+            speed = self.slider_speed.get()
+            delay = max(0.05, 1.0 / (speed * 2))
+            time.sleep(delay)
+            
+            self.log(f"Bước {i+1}: {action}")
+            if action == "SUCK":
+                self.env_list[self.vac_x][self.vac_y] = "Clean"
+            elif action == "UP": self.vac_x -= 1
+            elif action == "DOWN": self.vac_x += 1
+            elif action == "RIGHT": self.vac_y += 1
+            elif action == "LEFT": self.vac_y -= 1
+            
+            self.log(f"  -> Máy ở vị trí ({self.vac_x}, {self.vac_y})")
+            
+            self.after(0, self.draw_grid)
+            
+        if self.is_running:
+            self.log("--- HOÀN THÀNH DỌN DẸP ---")
+            self.is_running = False
+        
+        self.after(0, lambda: self.btn_start.configure(state="normal"))
