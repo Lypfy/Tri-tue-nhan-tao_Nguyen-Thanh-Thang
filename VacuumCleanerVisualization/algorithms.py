@@ -1,10 +1,14 @@
 import collections
 
 class Node:
-    def __init__(self, state, parent=None, action=None):
+    def __init__(self, state, parent=None, action=None, path_cost=0):
         self.state = state
         self.parent = parent
         self.action = action
+        self.path_cost = path_cost
+
+    def __lt__(self, other):
+        return self.path_cost < other.path_cost
 
 def is_goal(state):
     grid, _, _ = state
@@ -181,5 +185,69 @@ def dfs2(initial_state):
                 if child.state not in explored and child.state not in frontier_states:
                     frontier.append(child) # Đẩy vào đỉnh STACK
                     frontier_states.add(child.state)
+                    
+    return None
+
+# --- UCS: CƠ BẢN ---
+import heapq
+
+TERRAIN_COST = [
+    [1, 5, 1],
+    [1, 1, 1],
+    [5, 5, 5]
+]
+
+def get_actions_ucs(state):
+    grid, x, y = state
+    possible_moves = []
+    
+    if grid[x][y] == "Dirty":
+        return ["SUCK"] 
+        
+    if x > 0: possible_moves.append("UP")
+    if x < 2: possible_moves.append("DOWN")
+    if y > 0: possible_moves.append("LEFT")
+    if y < 2: possible_moves.append("RIGHT")
+    return possible_moves
+
+def ucs_standard(initial_state):
+    node = Node(initial_state, path_cost=0)
+    if is_goal(node.state): return []
+    
+    frontier = []
+    heapq.heappush(frontier, (node.path_cost, id(node), node))
+    frontier_states = {node.state: node}
+    explored = set()
+    
+    while frontier:
+        cost, _, node = heapq.heappop(frontier)
+        
+        if node.state in explored:
+            continue
+            
+        explored.add(node.state)
+        
+        if is_goal(node.state): 
+            return solution(node)
+            
+        for action in get_actions_ucs(node.state):
+            child = child_node(node, action)
+            new_x, new_y = child.state[1], child.state[2]
+            
+            if action == "SUCK":
+                move_cost = 1
+            else:
+                move_cost = TERRAIN_COST[new_x][new_y]
+                
+            child.path_cost = node.path_cost + move_cost
+            
+            if child.state not in explored and child.state not in frontier_states:
+                heapq.heappush(frontier, (child.path_cost, id(child), child))
+                frontier_states[child.state] = child
+            elif child.state in frontier_states:
+                existing_node = frontier_states[child.state]
+                if child.path_cost < existing_node.path_cost:
+                    heapq.heappush(frontier, (child.path_cost, id(child), child))
+                    frontier_states[child.state] = child
                     
     return None

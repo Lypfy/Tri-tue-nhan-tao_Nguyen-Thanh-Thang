@@ -2,6 +2,10 @@
 COLOR_DIRTY_CELL = "#D2B48C"  # Nâu nhạt
 COLOR_CLEAN_CELL = "#ADD8E6"  # Xanh dương nhạt
 COLOR_VACUUM = "#FFD700"      # Vàng
+COLOR_RUG_CELL = "#A9A9A9"    # Xám (thảm dày)
+
+COST_NORMAL = 1
+COST_RUG = 5
 
 # Màu sắc giao diện chung
 COLOR_BG_MAIN = "#F0F0F0"

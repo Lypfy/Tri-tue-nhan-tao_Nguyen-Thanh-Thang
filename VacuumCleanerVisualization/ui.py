@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from constants import *
-from algorithms import bfs1, bfs2, dfs1, dfs2
+from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard
 import time
 import threading
 
@@ -58,11 +58,17 @@ class VacuumApp(tk.Tk):
         self.is_running = False
         
         self.initial_environment = (
-            ("Dirty", "Clean", "Dirty"),
-            ("Clean", "Dirty", "Dirty"),
-            ("Dirty", "Clean", "Clean")
+            ("Clean", "Clean", "Dirty"),
+            ("Clean", "Clean", "Clean"),
+            ("Clean", "Clean", "Clean")
         )
-        self.initial_x, self.initial_y = 1, 1
+        self.initial_x, self.initial_y = 0, 0
+        
+        self.terrain_matrix = [
+            ["Normal", "Rug", "Normal"],
+            ["Normal", "Normal", "Normal"],
+            ["Rug", "Rug", "Rug"]
+        ]
         
         # State để vẽ
         self.env_list = [list(row) for row in self.initial_environment]
@@ -89,6 +95,9 @@ class VacuumApp(tk.Tk):
         
         self.acc_dfs = AccordionMenu(self.sidebar, "DFS (Depth-First)", ["DFS 1 (Cơ bản)", "DFS 2 (Tối ưu)"], self.algo_var)
         self.acc_dfs.pack(fill="x", padx=10, pady=5)
+        
+        self.acc_ucs = AccordionMenu(self.sidebar, "UCS (Uniform Cost)", ["UCS Standard"], self.algo_var)
+        self.acc_ucs.pack(fill="x", padx=10, pady=5)
         
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
                                    activebackground="#388E3C", activeforeground="white", font=("Arial", 11, "bold"),
@@ -178,12 +187,19 @@ class VacuumApp(tk.Tk):
                 x1 = x0 + cell_w
                 y1 = y0 + cell_h
                 
-                bg_color = COLOR_DIRTY_CELL if self.env_list[r][c] == "Dirty" else COLOR_CLEAN_CELL
+                if self.terrain_matrix[r][c] == "Rug":
+                    bg_color = COLOR_RUG_CELL
+                    cost_text = f"\n(Phí: {COST_RUG})"
+                else:
+                    bg_color = COLOR_DIRTY_CELL if self.env_list[r][c] == "Dirty" else COLOR_CLEAN_CELL
+                    cost_text = f"\n(Phí: {COST_NORMAL})"
+                    
                 self.canvas.create_rectangle(x0, y0, x1, y1, fill=bg_color, outline="white", width=2)
                 
-                text = "Bẩn" if self.env_list[r][c] == "Dirty" else "Sạch"
+                status_text = "Bẩn" if self.env_list[r][c] == "Dirty" else "Sạch"
+                text = status_text + cost_text
                 font_size = max(8, int(min(cell_w, cell_h) / 8))
-                self.canvas.create_text((x0+x1)/2, (y0+y1)/2 - font_size, text=text, font=("Arial", font_size, "bold"), fill="#222222")
+                self.canvas.create_text((x0+x1)/2, (y0+y1)/2 - font_size, text=text, font=("Arial", font_size, "bold"), fill="#222222", justify="center")
                 
                 # Vẽ robot
                 if r == self.vac_x and c == self.vac_y:
@@ -230,6 +246,8 @@ class VacuumApp(tk.Tk):
             path = dfs1(initial_state)
         elif algo == "DFS 2 (Tối ưu)":
             path = dfs2(initial_state)
+        elif algo == "UCS Standard":
+            path = ucs_standard(initial_state)
         else:
             self.log("Thuật toán đang được phát triển...")
             self.is_running = False
@@ -243,7 +261,22 @@ class VacuumApp(tk.Tk):
             return
             
         self.set_solution_text(" -> ".join(path))
+        
+        # Tính toán chi phí
+        total_cost = 0
+        curr_x, curr_y = self.initial_x, self.initial_y
+        for action in path:
+            if action == "SUCK":
+                total_cost += 1
+            else:
+                if action == "UP": curr_x -= 1
+                elif action == "DOWN": curr_x += 1
+                elif action == "LEFT": curr_y -= 1
+                elif action == "RIGHT": curr_y += 1
+                total_cost += COST_RUG if self.terrain_matrix[curr_x][curr_y] == "Rug" else COST_NORMAL
+                
         self.log(f"Đã tìm thấy giải pháp gồm {len(path)} bước.")
+        self.log(f"Tổng chi phí đường đi: {total_cost}")
         self.log("Bắt đầu di chuyển...")
         
         # Mô phỏng từng bước
