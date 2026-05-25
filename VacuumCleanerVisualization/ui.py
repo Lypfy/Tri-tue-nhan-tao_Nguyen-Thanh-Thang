@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from constants import *
-from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard
+from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star
 import time
 import threading
 
@@ -57,18 +57,10 @@ class VacuumApp(tk.Tk):
         
         self.is_running = False
         
-        self.initial_environment = (
-            ("Clean", "Clean", "Dirty"),
-            ("Clean", "Clean", "Clean"),
-            ("Clean", "Clean", "Clean")
-        )
-        self.initial_x, self.initial_y = 0, 0
+        self.initial_environment = INITIAL_ENVIRONMENT
+        self.initial_x, self.initial_y = INITIAL_X, INITIAL_Y
         
-        self.terrain_matrix = [
-            ["Normal", "Rug", "Normal"],
-            ["Normal", "Normal", "Normal"],
-            ["Rug", "Rug", "Rug"]
-        ]
+        self.terrain_matrix = TERRAIN_MATRIX
         
         # State để vẽ
         self.env_list = [list(row) for row in self.initial_environment]
@@ -89,15 +81,14 @@ class VacuumApp(tk.Tk):
         
         self.algo_var = tk.StringVar(value="BFS 1 (Cơ bản)")
         
-        self.acc_bfs = AccordionMenu(self.sidebar, "BFS (Breadth-First)", ["BFS 1 (Cơ bản)", "BFS 2 (Tối ưu)"], self.algo_var)
-        self.acc_bfs.pack(fill="x", padx=10, pady=5)
-        self.acc_bfs.toggle() # Mở sẵn BFS
+        self.acc_uninformed = AccordionMenu(self.sidebar, "Tìm kiếm không có thông tin", 
+                                            ["BFS 1 (Cơ bản)", "BFS 2 (Tối ưu)", "DFS 1 (Cơ bản)", "DFS 2 (Tối ưu)", "UCS", "IDDFS"], self.algo_var)
+        self.acc_uninformed.pack(fill="x", padx=10, pady=5)
+        self.acc_uninformed.toggle() # Mở sẵn
         
-        self.acc_dfs = AccordionMenu(self.sidebar, "DFS (Depth-First)", ["DFS 1 (Cơ bản)", "DFS 2 (Tối ưu)"], self.algo_var)
-        self.acc_dfs.pack(fill="x", padx=10, pady=5)
-        
-        self.acc_ucs = AccordionMenu(self.sidebar, "UCS (Uniform Cost)", ["UCS Standard"], self.algo_var)
-        self.acc_ucs.pack(fill="x", padx=10, pady=5)
+        self.acc_informed = AccordionMenu(self.sidebar, "Tìm kiếm có thông tin", 
+                                          ["Greedy BFS", "A*"], self.algo_var)
+        self.acc_informed.pack(fill="x", padx=10, pady=5)
         
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
                                    activebackground="#388E3C", activeforeground="white", font=("Arial", 11, "bold"),
@@ -187,11 +178,10 @@ class VacuumApp(tk.Tk):
                 x1 = x0 + cell_w
                 y1 = y0 + cell_h
                 
+                bg_color = COLOR_DIRTY_CELL if self.env_list[r][c] == "Dirty" else COLOR_CLEAN_CELL
                 if self.terrain_matrix[r][c] == "Rug":
-                    bg_color = COLOR_RUG_CELL
                     cost_text = f"\n(Phí: {COST_RUG})"
                 else:
-                    bg_color = COLOR_DIRTY_CELL if self.env_list[r][c] == "Dirty" else COLOR_CLEAN_CELL
                     cost_text = f"\n(Phí: {COST_NORMAL})"
                     
                 self.canvas.create_rectangle(x0, y0, x1, y1, fill=bg_color, outline="white", width=2)
@@ -246,8 +236,14 @@ class VacuumApp(tk.Tk):
             path = dfs1(initial_state)
         elif algo == "DFS 2 (Tối ưu)":
             path = dfs2(initial_state)
-        elif algo == "UCS Standard":
+        elif algo == "UCS":
             path = ucs_standard(initial_state)
+        elif algo == "IDDFS":
+            path = iddfs(initial_state)
+        elif algo == "Greedy BFS":
+            path = gbfs(initial_state)
+        elif algo == "A*":
+            path = a_star(initial_state)
         else:
             self.log("Thuật toán đang được phát triển...")
             self.is_running = False

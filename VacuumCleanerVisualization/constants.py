@@ -17,3 +17,17 @@ COLOR_BTN_RESET = "#F44336"   # Đỏ
 
 # Cấu hình grid
 GRID_SIZE = 3
+
+# Cấu hình môi trường đầu vào
+INITIAL_ENVIRONMENT = (
+    ("Clean", "Clean", "Dirty"),
+    ("Dirty", "Clean", "Clean"),
+    ("Clean", "Dirty", "Dirty")
+)
+INITIAL_X, INITIAL_Y = 0, 0
+
+TERRAIN_MATRIX = [
+    ["Normal", "Rug", "Normal"],
+    ["Normal", "Normal", "Normal"],
+    ["Rug", "Rug", "Rug"]
+]
