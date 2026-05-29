@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from constants import *
-from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star
+from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing
 import time
 import threading
 
@@ -87,8 +87,12 @@ class VacuumApp(tk.Tk):
         self.acc_uninformed.toggle() # Mở sẵn
         
         self.acc_informed = AccordionMenu(self.sidebar, "Tìm kiếm có thông tin", 
-                                          ["Greedy BFS", "A*"], self.algo_var)
+                                          ["Greedy BFS", "A*", "IDA*"], self.algo_var)
         self.acc_informed.pack(fill="x", padx=10, pady=5)
+        
+        self.acc_local_search = AccordionMenu(self.sidebar, "Tìm kiếm cục bộ", 
+                                              ["Leo đồi đơn giản", "Leo đồi dốc nhất", "Leo đồi ngẫu nhiên"], self.algo_var)
+        self.acc_local_search.pack(fill="x", padx=10, pady=5)
         
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
                                    activebackground="#388E3C", activeforeground="white", font=("Arial", 11, "bold"),
@@ -244,6 +248,14 @@ class VacuumApp(tk.Tk):
             path = gbfs(initial_state)
         elif algo == "A*":
             path = a_star(initial_state)
+        elif algo == "IDA*":
+            path = ida_star(initial_state)
+        elif algo == "Leo đồi đơn giản":
+            path = simple_hill_climbing(initial_state)
+        elif algo == "Leo đồi dốc nhất":
+            path = steepest_ascent_hill_climbing(initial_state)
+        elif algo == "Leo đồi ngẫu nhiên":
+            path = stochastic_hill_climbing(initial_state)
         else:
             self.log("Thuật toán đang được phát triển...")
             self.is_running = False

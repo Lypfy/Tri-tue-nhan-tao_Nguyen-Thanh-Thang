@@ -5,7 +5,7 @@ COLOR_VACUUM = "#FFD700"      # Vàng
 COLOR_RUG_CELL = "#A9A9A9"    # Xám (thảm dày)
 
 COST_NORMAL = 1
-COST_RUG = 5
+COST_RUG = 10
 
 # Màu sắc giao diện chung
 COLOR_BG_MAIN = "#F0F0F0"
@@ -21,13 +21,13 @@ GRID_SIZE = 3
 # Cấu hình môi trường đầu vào
 INITIAL_ENVIRONMENT = (
     ("Clean", "Clean", "Dirty"),
-    ("Dirty", "Clean", "Clean"),
-    ("Clean", "Dirty", "Dirty")
+    ("Clean", "Clean", "Clean"),
+    ("Clean", "Clean", "Clean")
 )
 INITIAL_X, INITIAL_Y = 0, 0
 
 TERRAIN_MATRIX = [
     ["Normal", "Rug", "Normal"],
-    ["Normal", "Normal", "Normal"],
-    ["Rug", "Rug", "Rug"]
+    ["Normal", "Rug", "Normal"],
+    ["Normal", "Normal", "Normal"]
 ]
