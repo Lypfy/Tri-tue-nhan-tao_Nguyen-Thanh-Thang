@@ -15,9 +15,9 @@ def get_actions_ucs(state):
         return ["SUCK"] 
         
     if x > 0: possible_moves.append("UP")
-    if x < 2: possible_moves.append("DOWN")
+    if x < len(grid) - 1: possible_moves.append("DOWN")
     if y > 0: possible_moves.append("LEFT")
-    if y < 2: possible_moves.append("RIGHT")
+    if y < len(grid[0]) - 1: possible_moves.append("RIGHT")
     return possible_moves
 
 def ucs_standard(initial_state):

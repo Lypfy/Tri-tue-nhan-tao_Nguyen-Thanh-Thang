@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from constants import *
-from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing
+from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search
 import time
 import threading
 
@@ -91,7 +91,7 @@ class VacuumApp(tk.Tk):
         self.acc_informed.pack(fill="x", padx=10, pady=5)
         
         self.acc_local_search = AccordionMenu(self.sidebar, "Tìm kiếm cục bộ", 
-                                              ["Leo đồi đơn giản", "Leo đồi dốc nhất", "Leo đồi ngẫu nhiên"], self.algo_var)
+                                              ["Leo đồi đơn giản", "Leo đồi dốc nhất", "Leo đồi ngẫu nhiên", "Leo đồi khởi động lại", "Local Beam Search"], self.algo_var)
         self.acc_local_search.pack(fill="x", padx=10, pady=5)
         
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
@@ -151,16 +151,20 @@ class VacuumApp(tk.Tk):
         self.txt_log.configure(state="disabled")
 
     def log(self, message):
-        self.txt_log.configure(state="normal")
-        self.txt_log.insert("end", message + "\n")
-        self.txt_log.see("end")
-        self.txt_log.configure(state="disabled")
+        def _log():
+            self.txt_log.configure(state="normal")
+            self.txt_log.insert("end", message + "\n")
+            self.txt_log.see("end")
+            self.txt_log.configure(state="disabled")
+        self.after(0, _log)
         
     def set_solution_text(self, text):
-        self.txt_solution.configure(state="normal")
-        self.txt_solution.delete("1.0", "end")
-        self.txt_solution.insert("end", text)
-        self.txt_solution.configure(state="disabled")
+        def _set():
+            self.txt_solution.configure(state="normal")
+            self.txt_solution.delete("1.0", "end")
+            self.txt_solution.insert("end", text)
+            self.txt_solution.configure(state="disabled")
+        self.after(0, _set)
 
     def draw_grid(self):
         self.canvas.delete("all")
@@ -256,6 +260,10 @@ class VacuumApp(tk.Tk):
             path = steepest_ascent_hill_climbing(initial_state)
         elif algo == "Leo đồi ngẫu nhiên":
             path = stochastic_hill_climbing(initial_state)
+        elif algo == "Leo đồi khởi động lại":
+            path = random_restart_hill_climbing(initial_state)
+        elif algo == "Local Beam Search":
+            path = local_beam_search(initial_state)
         else:
             self.log("Thuật toán đang được phát triển...")
             self.is_running = False

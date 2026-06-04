@@ -4,9 +4,9 @@ def get_actions_dfs1(state):
     grid, x, y = state
     possible_moves = []
     
-    if y < 2: possible_moves.append("RIGHT")
+    if y < len(grid[0]) - 1: possible_moves.append("RIGHT")
     if y > 0: possible_moves.append("LEFT")
-    if x < 2: possible_moves.append("DOWN")
+    if x < len(grid) - 1: possible_moves.append("DOWN")
     if x > 0: possible_moves.append("UP")
     if grid[x][y] == "Dirty":
         possible_moves.append("SUCK")
@@ -47,9 +47,9 @@ def get_actions_dfs2(state):
     
     possible_moves = []
 
-    if y < 2: possible_moves.append("RIGHT")
+    if y < len(grid[0]) - 1: possible_moves.append("RIGHT")
     if y > 0: possible_moves.append("LEFT")
-    if x < 2: possible_moves.append("DOWN")
+    if x < len(grid) - 1: possible_moves.append("DOWN")
     if x > 0: possible_moves.append("UP")
     
     return possible_moves

@@ -1,1 +1,1 @@
-from .hill_climbing import simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing
+from .hill_climbing import simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search

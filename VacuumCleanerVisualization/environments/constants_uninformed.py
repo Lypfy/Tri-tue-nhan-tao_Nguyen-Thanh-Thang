@@ -16,18 +16,20 @@ COLOR_BTN_START = "#4CAF50"   # Xanh lá mạ
 COLOR_BTN_RESET = "#F44336"   # Đỏ
 
 # Cấu hình grid
-GRID_SIZE = 3
+GRID_SIZE = 4
 
 # Cấu hình môi trường đầu vào
 INITIAL_ENVIRONMENT = (
-    ("Dirty", "Clean", "Dirty"),
-    ("Clean", "Clean", "Clean"),
-    ("Dirty", "Clean", "Dirty")
+    ("Clean", "Clean", "Dirty", "Clean"),
+    ("Clean", "Dirty", "Clean", "Clean"),
+    ("Clean", "Clean", "Clean", "Dirty"),
+    ("Clean", "Clean", "Clean", "Clean")
 )
-INITIAL_X, INITIAL_Y = 1, 1  # Máy hút bụi bắt đầu ở giữa
+INITIAL_X, INITIAL_Y = 0, 0
 
 TERRAIN_MATRIX = [
-    ["Normal", "Normal", "Normal"],
-    ["Normal", "Normal", "Normal"],
-    ["Normal", "Normal", "Normal"]
+    ["Normal", "Rug", "Normal", "Normal"],
+    ["Normal", "Normal", "Normal", "Rug"],
+    ["Rug", "Normal", "Normal", "Normal"],
+    ["Normal", "Normal", "Rug", "Normal"]
 ]
