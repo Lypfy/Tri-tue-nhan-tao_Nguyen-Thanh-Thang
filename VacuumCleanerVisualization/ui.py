@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from constants import *
-from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search
+from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search, simulated_annealing
 import time
 import threading
 
@@ -73,8 +73,31 @@ class VacuumApp(tk.Tk):
         self.draw_grid()
 
     def setup_sidebar(self):
-        self.sidebar = tk.Frame(self, bg=COLOR_BG_SIDEBAR)
-        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        self.sidebar_container = tk.Frame(self, bg=COLOR_BG_SIDEBAR)
+        self.sidebar_container.grid(row=0, column=0, sticky="nsew")
+        
+        self.sidebar_canvas = tk.Canvas(self.sidebar_container, bg=COLOR_BG_SIDEBAR, highlightthickness=0)
+        self.sidebar_scrollbar = ttk.Scrollbar(self.sidebar_container, orient="vertical", command=self.sidebar_canvas.yview)
+        
+        self.sidebar = tk.Frame(self.sidebar_canvas, bg=COLOR_BG_SIDEBAR)
+        self.sidebar.bind(
+            "<Configure>",
+            lambda e: self.sidebar_canvas.configure(scrollregion=self.sidebar_canvas.bbox("all"))
+        )
+        
+        self.sidebar_window = self.sidebar_canvas.create_window((0, 0), window=self.sidebar, anchor="nw")
+        self.sidebar_canvas.configure(yscrollcommand=self.sidebar_scrollbar.set)
+        
+        self.sidebar_canvas.pack(side="left", fill="both", expand=True)
+        self.sidebar_scrollbar.pack(side="right", fill="y")
+        
+        # Đảm bảo sidebar chiếm toàn bộ chiều rộng của canvas
+        self.sidebar_canvas.bind("<Configure>", lambda e: self.sidebar_canvas.itemconfig(self.sidebar_window, width=e.width))
+        
+        # Bind cuộn chuột
+        def _on_mousewheel(event):
+            self.sidebar_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.sidebar_canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         lbl_title = tk.Label(self.sidebar, text="Algorithm Selection", font=("Arial", 14, "bold"), bg=COLOR_BG_SIDEBAR, fg="white")
         lbl_title.pack(pady=(10, 10), padx=10)
@@ -91,7 +114,7 @@ class VacuumApp(tk.Tk):
         self.acc_informed.pack(fill="x", padx=10, pady=5)
         
         self.acc_local_search = AccordionMenu(self.sidebar, "Tìm kiếm cục bộ", 
-                                              ["Leo đồi đơn giản", "Leo đồi dốc nhất", "Leo đồi ngẫu nhiên", "Leo đồi khởi động lại", "Local Beam Search"], self.algo_var)
+                                              ["Leo đồi đơn giản", "Leo đồi dốc nhất", "Leo đồi ngẫu nhiên", "Leo đồi khởi động lại", "Local Beam Search", "Mô phỏng luyện kim"], self.algo_var)
         self.acc_local_search.pack(fill="x", padx=10, pady=5)
         
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
@@ -264,6 +287,8 @@ class VacuumApp(tk.Tk):
             path = random_restart_hill_climbing(initial_state)
         elif algo == "Local Beam Search":
             path = local_beam_search(initial_state)
+        elif algo == "Mô phỏng luyện kim":
+            path = simulated_annealing(initial_state)
         else:
             self.log("Thuật toán đang được phát triển...")
             self.is_running = False

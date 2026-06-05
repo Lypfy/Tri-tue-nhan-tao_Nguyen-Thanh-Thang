@@ -14,3 +14,4 @@ from algorithms.local_search.hill_climbing import (
     random_restart_hill_climbing,
     local_beam_search
 )
+from algorithms.local_search.simulated_annealing import simulated_annealing
