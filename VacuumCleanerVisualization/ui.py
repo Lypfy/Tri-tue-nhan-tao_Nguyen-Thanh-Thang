@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from constants import *
-from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search, simulated_annealing
+from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search, simulated_annealing, belief_gbfs
 import time
 import threading
 
@@ -116,6 +116,10 @@ class VacuumApp(tk.Tk):
         self.acc_local_search = AccordionMenu(self.sidebar, "Tìm kiếm cục bộ", 
                                               ["Leo đồi đơn giản", "Leo đồi dốc nhất", "Leo đồi ngẫu nhiên", "Leo đồi khởi động lại", "Local Beam Search", "Mô phỏng luyện kim"], self.algo_var)
         self.acc_local_search.pack(fill="x", padx=10, pady=5)
+        
+        self.acc_complex_env = AccordionMenu(self.sidebar, "Môi trường phức tạp", 
+                                              ["Niềm tin (Greedy BFS)"], self.algo_var)
+        self.acc_complex_env.pack(fill="x", padx=10, pady=5)
         
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
                                    activebackground="#388E3C", activeforeground="white", font=("Arial", 11, "bold"),
@@ -289,6 +293,8 @@ class VacuumApp(tk.Tk):
             path = local_beam_search(initial_state)
         elif algo == "Mô phỏng luyện kim":
             path = simulated_annealing(initial_state)
+        elif algo == "Niềm tin (Greedy BFS)":
+            path = belief_gbfs(initial_state)
         else:
             self.log("Thuật toán đang được phát triển...")
             self.is_running = False

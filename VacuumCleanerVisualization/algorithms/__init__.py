@@ -7,6 +7,8 @@ from algorithms.informed.gbfs import gbfs
 from algorithms.informed.a_star import a_star
 from algorithms.informed.ida_star import ida_star
 
+from algorithms.complex_env.belief_gbfs import belief_gbfs
+
 from algorithms.local_search.hill_climbing import (
     simple_hill_climbing,
     steepest_ascent_hill_climbing,
