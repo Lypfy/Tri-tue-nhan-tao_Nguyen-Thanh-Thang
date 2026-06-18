@@ -7,7 +7,9 @@ from algorithms.informed.gbfs import gbfs
 from algorithms.informed.a_star import a_star
 from algorithms.informed.ida_star import ida_star
 
-from algorithms.complex_env.belief_gbfs import belief_gbfs
+from algorithms.complex_env.belief_dfs import belief_dfs, sensorless_belief_dfs
+from algorithms.complex_env.partially_observable_dfs import partially_observable_belief_dfs
+from algorithms.complex_env.and_or_search import and_or_graph_search
 
 from algorithms.local_search.hill_climbing import (
     simple_hill_climbing,
@@ -17,3 +19,11 @@ from algorithms.local_search.hill_climbing import (
     local_beam_search
 )
 from algorithms.local_search.simulated_annealing import simulated_annealing
+
+from algorithms.csp.backtracking import (
+    backtracking_search,
+    HCMC_DISTRICTS,
+    HCMC_NEIGHBORS,
+    DISTRICT_POSITIONS,
+    COLOR_HEX
+)

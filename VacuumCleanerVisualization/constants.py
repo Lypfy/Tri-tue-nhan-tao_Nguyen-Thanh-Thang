@@ -31,3 +31,28 @@ TERRAIN_MATRIX = [
     ["Normal", "Normal", "Normal"],
     ["Normal", "Normal", "Normal"]
 ]
+
+ROOM_ENVIRONMENTS = {
+    "Phòng 3x3 (Cơ bản)": {
+        "GRID_SIZE": GRID_SIZE,
+        "INITIAL_ENVIRONMENT": INITIAL_ENVIRONMENT,
+        "INITIAL_X": INITIAL_X,
+        "INITIAL_Y": INITIAL_Y,
+        "TERRAIN_MATRIX": TERRAIN_MATRIX
+    },
+    "Phòng trơn trượt (Slippery 3x3)": {
+        "GRID_SIZE": 3,
+        "INITIAL_ENVIRONMENT": (
+            ("Dirty", "Dirty", "Dirty"),
+            ("Dirty", "Dirty", "Dirty"),
+            ("Dirty", "Dirty", "Dirty")
+        ),
+        "INITIAL_X": 1,
+        "INITIAL_Y": 1,
+        "TERRAIN_MATRIX": [
+            ["Normal", "Normal", "Normal"],
+            ["Normal", "Normal", "Normal"],
+            ["Normal", "Normal", "Normal"]
+        ]
+    }
+}

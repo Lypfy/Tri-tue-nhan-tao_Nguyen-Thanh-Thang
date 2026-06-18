@@ -1,9 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
 from constants import *
-from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search, simulated_annealing, belief_gbfs
+from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search, simulated_annealing, belief_dfs, sensorless_belief_dfs, partially_observable_belief_dfs, and_or_graph_search
+from algorithms import backtracking_search, HCMC_DISTRICTS, HCMC_NEIGHBORS, DISTRICT_POSITIONS, COLOR_HEX
 import time
 import threading
+import random
 
 class AccordionMenu(tk.Frame):
     def __init__(self, master, title, options, var, **kwargs):
@@ -56,21 +58,34 @@ class VacuumApp(tk.Tk):
         self.grid_rowconfigure(0, weight=1)
         
         self.is_running = False
+        self.csp_mode = False          # True khi đang ở chế độ CSP
+        self.csp_coloring = {}         # Kết quả tô màu hiện tại
         
-        self.initial_environment = INITIAL_ENVIRONMENT
-        self.initial_x, self.initial_y = INITIAL_X, INITIAL_Y
-        
-        self.terrain_matrix = TERRAIN_MATRIX
-        
-        # State để vẽ
-        self.env_list = [list(row) for row in self.initial_environment]
-        self.vac_x, self.vac_y = self.initial_x, self.initial_y
+        # Room setup
+        self.room_var = tk.StringVar(value="Phòng 3x3 (Cơ bản)")
+        self.load_environment()
         
         self.setup_sidebar()
         self.setup_main_area()
         self.setup_action_log()
         
         self.draw_grid()
+
+    def load_environment(self):
+        env_key = self.room_var.get()
+        config = ROOM_ENVIRONMENTS.get(env_key, ROOM_ENVIRONMENTS["Phòng 3x3 (Cơ bản)"])
+        self.grid_size = config["GRID_SIZE"]
+        self.initial_environment = config["INITIAL_ENVIRONMENT"]
+        self.initial_x, self.initial_y = config["INITIAL_X"], config["INITIAL_Y"]
+        self.terrain_matrix = config["TERRAIN_MATRIX"]
+        self.env_list = [list(row) for row in self.initial_environment]
+        self.vac_x, self.vac_y = self.initial_x, self.initial_y
+        self.current_belief_state = None
+
+    def on_room_change(self, event):
+        if self.is_running: return
+        self.load_environment()
+        self.reset_simulation()
 
     def setup_sidebar(self):
         self.sidebar_container = tk.Frame(self, bg=COLOR_BG_SIDEBAR)
@@ -102,6 +117,12 @@ class VacuumApp(tk.Tk):
         lbl_title = tk.Label(self.sidebar, text="Algorithm Selection", font=("Arial", 14, "bold"), bg=COLOR_BG_SIDEBAR, fg="white")
         lbl_title.pack(pady=(10, 10), padx=10)
         
+        lbl_room = tk.Label(self.sidebar, text="Room Environment", bg=COLOR_BG_SIDEBAR, fg="white", font=("Arial", 9))
+        lbl_room.pack(pady=(5, 0))
+        self.cb_room = ttk.Combobox(self.sidebar, textvariable=self.room_var, values=list(ROOM_ENVIRONMENTS.keys()), state="readonly")
+        self.cb_room.pack(pady=5, padx=10, fill="x")
+        self.cb_room.bind("<<ComboboxSelected>>", self.on_room_change)
+        
         self.algo_var = tk.StringVar(value="BFS 1 (Cơ bản)")
         
         self.acc_uninformed = AccordionMenu(self.sidebar, "Tìm kiếm không có thông tin", 
@@ -118,8 +139,12 @@ class VacuumApp(tk.Tk):
         self.acc_local_search.pack(fill="x", padx=10, pady=5)
         
         self.acc_complex_env = AccordionMenu(self.sidebar, "Môi trường phức tạp", 
-                                              ["Niềm tin (Greedy BFS)"], self.algo_var)
+                                              ["Nhìn thấy một phần (DFS)", "Không nhìn thấy (DFS)", "HĐ Không xác định"], self.algo_var)
         self.acc_complex_env.pack(fill="x", padx=10, pady=5)
+        
+        self.acc_csp = AccordionMenu(self.sidebar, "Constraint Satisfaction",
+                                     ["Backtracking Search"], self.algo_var)
+        self.acc_csp.pack(fill="x", padx=10, pady=5)
         
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
                                    activebackground="#388E3C", activeforeground="white", font=("Arial", 11, "bold"),
@@ -203,17 +228,46 @@ class VacuumApp(tk.Tk):
         if width <= 1 or height <= 1:
             return
             
-        cell_w = width / GRID_SIZE
-        cell_h = height / GRID_SIZE
+        cell_w = width / self.grid_size
+        cell_h = height / self.grid_size
         
-        for r in range(GRID_SIZE):
-            for c in range(GRID_SIZE):
+        # Calculate belief state probabilities if active
+        dirt_probs = {}
+        vac_positions = set()
+        is_belief = self.current_belief_state is not None
+        
+        if is_belief:
+            num_states = len(self.current_belief_state)
+            for state in self.current_belief_state:
+                grid, vx, vy = state
+                vac_positions.add((vx, vy))
+                for r in range(self.grid_size):
+                    for c in range(self.grid_size):
+                        if grid[r][c] == "Dirty":
+                            dirt_probs[(r, c)] = dirt_probs.get((r, c), 0) + 1
+            for k in dirt_probs:
+                dirt_probs[k] /= num_states
+        
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 x0 = c * cell_w
                 y0 = r * cell_h
                 x1 = x0 + cell_w
                 y1 = y0 + cell_h
                 
-                bg_color = COLOR_DIRTY_CELL if self.env_list[r][c] == "Dirty" else COLOR_CLEAN_CELL
+                # Determine cell appearance
+                if is_belief:
+                    prob = dirt_probs.get((r, c), 0)
+                    if prob > 0:
+                        bg_color = COLOR_DIRTY_CELL
+                        status_text = f"Bẩn ({int(prob*100)}%)"
+                    else:
+                        bg_color = COLOR_CLEAN_CELL
+                        status_text = "Sạch"
+                else:
+                    bg_color = COLOR_DIRTY_CELL if self.env_list[r][c] == "Dirty" else COLOR_CLEAN_CELL
+                    status_text = "Bẩn" if self.env_list[r][c] == "Dirty" else "Sạch"
+                
                 if self.terrain_matrix[r][c] == "Rug":
                     cost_text = f"\n(Phí: {COST_RUG})"
                 else:
@@ -221,34 +275,53 @@ class VacuumApp(tk.Tk):
                     
                 self.canvas.create_rectangle(x0, y0, x1, y1, fill=bg_color, outline="white", width=2)
                 
-                status_text = "Bẩn" if self.env_list[r][c] == "Dirty" else "Sạch"
                 text = status_text + cost_text
                 font_size = max(8, int(min(cell_w, cell_h) / 8))
                 self.canvas.create_text((x0+x1)/2, (y0+y1)/2 - font_size, text=text, font=("Arial", font_size, "bold"), fill="#222222", justify="center")
                 
                 # Vẽ robot
-                if r == self.vac_x and c == self.vac_y:
-                    radius = min(cell_w, cell_h) / 5
-                    cx, cy = (x0+x1)/2, (y0+y1)/2 + font_size
-                    robot_font = max(6, int(font_size * 0.7))
-                    self.canvas.create_oval(cx-radius, cy-radius, cx+radius, cy+radius, fill=COLOR_VACUUM, outline="#C4A000", width=3)
-                    self.canvas.create_text(cx, cy, text="AI", font=("Arial", robot_font, "bold"), fill="black")
+                cx, cy = (x0+x1)/2, (y0+y1)/2 + font_size
+                radius = min(cell_w, cell_h) / 5
+                robot_font = max(6, int(font_size * 0.7))
+                
+                if is_belief:
+                    if (r, c) in vac_positions:
+                        self.canvas.create_oval(cx-radius, cy-radius, cx+radius, cy+radius, fill=COLOR_VACUUM, outline="#C4A000", width=3)
+                        self.canvas.create_text(cx, cy, text=f"AI", font=("Arial", robot_font, "bold"), fill="black")
+                else:
+                    if r == self.vac_x and c == self.vac_y:
+                        is_slip = getattr(self, "is_slipping", False)
+                        color = "#FF4500" if is_slip else COLOR_VACUUM
+                        self.canvas.create_oval(cx-radius, cy-radius, cx+radius, cy+radius, fill=color, outline="#C4A000", width=3)
+                        self.canvas.create_text(cx, cy, text="AI", font=("Arial", robot_font, "bold"), fill="black")
+                        if is_slip:
+                            self.canvas.create_text(cx, cy - radius - 15, text="Oops! Trượt", font=("Arial", max(8, int(font_size*0.8)), "bold"), fill="red")
 
     def reset_simulation(self):
         self.is_running = False
         self.env_list = [list(row) for row in self.initial_environment]
         self.vac_x, self.vac_y = self.initial_x, self.initial_y
+        self.current_belief_state = None
+        self.csp_coloring = {}
         
         self.txt_log.configure(state="normal")
         self.txt_log.delete("1.0", "end")
         self.txt_log.configure(state="disabled")
         
         self.set_solution_text("")
-        self.draw_grid()
+        
+        # Chọn kiểu vẽ tuỳ theo chế độ
+        if self.csp_mode:
+            self.draw_csp_map({}, None)
+        else:
+            self.draw_grid()
         self.btn_start.configure(state="normal")
 
     def start_simulation(self):
         if self.is_running: return
+        # Xác định chế độ trước khi reset
+        algo = self.algo_var.get()
+        self.csp_mode = (algo == "Backtracking Search")
         self.reset_simulation()
         self.is_running = True
         self.btn_start.configure(state="disabled")
@@ -256,12 +329,145 @@ class VacuumApp(tk.Tk):
         # Chạy thuật toán trong luồng riêng để UI không bị đơ
         threading.Thread(target=self.run_algorithm, daemon=True).start()
         
+    # ──────────────────────────────────────────────────────────────
+    # CSP VISUALIZATION
+    # ──────────────────────────────────────────────────────────────
+    def draw_csp_map(self, coloring, step_info):
+        """Vẽ bản đồ đồ thị quận TPHCM với tô màu hiện tại."""
+        self.canvas.delete("all")
+        self.update_idletasks()
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        if w <= 1 or h <= 1:
+            return
+
+        margin_x, margin_y = 40, 40
+        usable_w = w - 2 * margin_x
+        usable_h = h - 2 * margin_y
+        node_r = max(18, min(usable_w, usable_h) // 28)
+
+        def pos(district):
+            nx, ny = DISTRICT_POSITIONS[district]
+            return (margin_x + nx * usable_w, margin_y + ny * usable_h)
+
+        # Vẽ cạnh
+        for d, neighbors in HCMC_NEIGHBORS.items():
+            x1, y1 = pos(d)
+            for nb in neighbors:
+                if nb > d:   # tránh vẽ đôi
+                    x2, y2 = pos(nb)
+                    self.canvas.create_line(x1, y1, x2, y2,
+                                            fill="#CCCCCC", width=1, dash=(4, 3))
+
+        # Highlight cạnh đang vi phạm ràng buộc (nếu có)
+        current = step_info["current"] if step_info else None
+        if current and coloring.get(current):
+            cx, cy = pos(current)
+            for nb in HCMC_NEIGHBORS[current]:
+                if coloring.get(nb) == coloring.get(current):
+                    nx2, ny2 = pos(nb)
+                    self.canvas.create_line(cx, cy, nx2, ny2,
+                                            fill="#FF0000", width=3)
+
+        # Vẽ node
+        for d in HCMC_DISTRICTS:
+            px, py = pos(d)
+            color_name = coloring.get(d)
+            fill = COLOR_HEX.get(color_name, "#AAAAAA")
+
+            # Hiệu ứng: node đang xét thì viền đậm hơn
+            if step_info and d == current:
+                outline = "#FFFFFF"
+                outline_w = 3
+            else:
+                outline = "#555555"
+                outline_w = 1
+
+            # Shadow
+            self.canvas.create_oval(
+                px - node_r + 3, py - node_r + 3,
+                px + node_r + 3, py + node_r + 3,
+                fill="#888888", outline=""
+            )
+            # Node
+            self.canvas.create_oval(
+                px - node_r, py - node_r,
+                px + node_r, py + node_r,
+                fill=fill, outline=outline, width=outline_w
+            )
+
+            # Tên quận rút gọn
+            short = d.replace("Quận ", "Q").replace("Bình Thạnh", "B.Thạnh")\
+                      .replace("Bình Tân", "B.Tân").replace("Bình Chánh", "B.Chánh")\
+                      .replace("Cần Giờ", "C.Giờ").replace("Hóc Môn", "H.Môn")\
+                      .replace("Củ Chi", "C.Chi").replace("Nhà Bè", "N.Bè")\
+                      .replace("Tân Bình", "T.Bình").replace("Tân Phú", "T.Phú")\
+                      .replace("Thủ Đức", "T.Đức").replace("Gò Vấp", "G.Vấp")\
+                      .replace("Phú Nhuận", "P.Nhuận")
+            fsize = max(7, node_r // 2)
+            text_fill = "#111111" if color_name in ("Vàng", "Xanh lá") else "#FFFFFF"
+            if color_name is None:
+                text_fill = "#222222"
+            self.canvas.create_text(px, py, text=short,
+                                    font=("Arial", fsize, "bold"), fill=text_fill)
+
+        # Overlay thông tin bước
+        if step_info:
+            action = step_info.get("action", "")
+            msg = step_info.get("message", "")
+            assigned = sum(1 for v in coloring.values() if v is not None)
+            total = len(HCMC_DISTRICTS)
+
+            bg_color = {"assign": "#1A472A", "backtrack": "#7B1818", "done": "#1A3A6A"}.get(action, "#333333")
+            self.canvas.create_rectangle(10, h - 55, w - 10, h - 10,
+                                         fill=bg_color, outline="", stipple="")
+            self.canvas.create_text(w // 2, h - 38, text=msg,
+                                    font=("Arial", 10, "bold"), fill="white")
+            self.canvas.create_text(w // 2, h - 20,
+                                    text=f"Đã tô: {assigned}/{total} quận",
+                                    font=("Arial", 9), fill="#DDDDDD")
+
     def run_algorithm(self):
         initial_state = (self.initial_environment, self.initial_x, self.initial_y)
         algo = self.algo_var.get()
         
         self.log(f"--- Bắt đầu mô phỏng: {algo} ---")
-        
+
+        # ── CSP MODE ──────────────────────────────────────────────
+        if algo == "Backtracking Search":
+            self.log("Đang chạy Backtracking Search (Forward Checking)...")
+            steps = backtracking_search()
+            self.log(f"Tổng số bước (kể cả backtrack): {len(steps)}")
+
+            for i, step in enumerate(steps):
+                if not self.is_running:
+                    break
+                speed = self.slider_speed.get()
+                delay = max(0.03, 0.5 / (speed * 2))
+                time.sleep(delay)
+
+                self.csp_coloring = step["coloring"]
+                self.log(f"Bước {i+1}: {step['message']}")
+
+                # Capture cho lambda
+                s = step
+                c = dict(self.csp_coloring)
+                self.after(0, lambda col=c, st=s: self.draw_csp_map(col, st))
+
+            if self.is_running:
+                final_coloring = self.csp_coloring
+                colors_used = set(v for v in final_coloring.values() if v)
+                summary = "\n".join(f"  {d}: {c}" for d, c in sorted(final_coloring.items()))
+                self.set_solution_text(
+                    f"Số màu sử dụng: {len(colors_used)} ({', '.join(colors_used)})\n\n" + summary
+                )
+                self.log(f"--- HOÀN THÀNH: dùng {len(colors_used)} màu ---")
+                self.is_running = False
+
+            self.after(0, lambda: self.btn_start.configure(state="normal"))
+            return
+
+        # ── VACUUM MODE ───────────────────────────────────────────
         path = []
         if algo == "BFS 1 (Cơ bản)":
             path = bfs1(initial_state)
@@ -293,8 +499,76 @@ class VacuumApp(tk.Tk):
             path = local_beam_search(initial_state)
         elif algo == "Mô phỏng luyện kim":
             path = simulated_annealing(initial_state)
-        elif algo == "Niềm tin (Greedy BFS)":
-            path = belief_gbfs(initial_state)
+        elif algo == "Nhìn thấy một phần (DFS)":
+            path = partially_observable_belief_dfs(initial_state)
+        elif algo == "Không nhìn thấy (DFS)":
+            path = sensorless_belief_dfs(initial_state)
+        elif algo == "HĐ Không xác định":
+            path = and_or_graph_search(initial_state)
+            
+            if path == 'failure' or path is None:
+                self.log("Không tìm thấy đường đi (Failure).")
+                self.is_running = False
+                self.after(0, lambda: self.btn_start.configure(state="normal"))
+                return
+                
+            self.set_solution_text("Conditional Plan (xem Log)")
+            self.log("Đã tìm thấy Conditional Plan!")
+            
+            # Now simulate it
+            from algorithms.complex_env.and_or_search import slippery_results
+            
+            current_state = initial_state
+            current_plan = path
+            
+            while self.is_running and current_plan != []:
+                action, subplans = current_plan[0], current_plan[1]
+                
+                speed = self.slider_speed.get()
+                delay = max(0.05, 1.0 / (speed * 2))
+                time.sleep(delay)
+                
+                self.log(f"-> Thực hiện: {action}")
+                
+                outcomes = slippery_results(current_state, action)
+                next_state = random.choice(outcomes)
+                
+                if len(outcomes) > 1:
+                    if next_state == current_state:
+                        self.log("   (Kết quả: Trượt! Robot bị đứng yên tại chỗ)")
+                        self.is_slipping = True
+                    else:
+                        self.log("   (Kết quả: Bình thường - Di chuyển thành công)")
+                        self.is_slipping = False
+                else:
+                    self.is_slipping = False
+                        
+                grid, nx, ny = next_state
+                self.env_list = [list(row) for row in grid]
+                self.vac_x, self.vac_y = nx, ny
+                
+                self.after(0, self.draw_grid)
+                
+                current_state = next_state
+                from algorithms.common import is_goal
+                if is_goal(current_state):
+                    current_plan = []
+                elif current_state in subplans:
+                    subplan = subplans[current_state]
+                    if subplan == "RETRY":
+                        self.log("   -> [Nhánh lặp] Thử lại hành động trước đó do bị trượt.")
+                        # Giữ nguyên current_plan để thử lại
+                    else:
+                        current_plan = subplan
+                else:
+                    self.log("Lỗi: Trạng thái không có trong kế hoạch!")
+                    break
+            
+            if self.is_running:
+                self.log("--- HOÀN THÀNH DỌN DẸP ---")
+                self.is_running = False
+            self.after(0, lambda: self.btn_start.configure(state="normal"))
+            return
         else:
             self.log("Thuật toán đang được phát triển...")
             self.is_running = False
@@ -327,25 +601,66 @@ class VacuumApp(tk.Tk):
         self.log("Bắt đầu di chuyển...")
         
         # Mô phỏng từng bước
-        for i, action in enumerate(path):
-            if not self.is_running: break
+        is_belief_algo = algo in ["Nhìn thấy một phần (DFS)", "Không nhìn thấy (DFS)"]
+        
+        if is_belief_algo:
+            from algorithms.common import Node
             
-            # Slider speed logic
-            speed = self.slider_speed.get()
-            delay = max(0.05, 1.0 / (speed * 2))
-            time.sleep(delay)
-            
-            self.log(f"Bước {i+1}: {action}")
-            if action == "SUCK":
-                self.env_list[self.vac_x][self.vac_y] = "Clean"
-            elif action == "UP": self.vac_x -= 1
-            elif action == "DOWN": self.vac_x += 1
-            elif action == "RIGHT": self.vac_y += 1
-            elif action == "LEFT": self.vac_y -= 1
-            
-            self.log(f"  -> Máy ở vị trí ({self.vac_x}, {self.vac_y})")
-            
+            if algo == "Không nhìn thấy (DFS)":
+                from algorithms.complex_env.belief_dfs import sensorless_child_node as belief_child_node
+                
+                # Khởi tạo initial belief set cho sensorless (tất cả các ô)
+                grid = initial_state[0]
+                initial_belief_set = set()
+                for r in range(len(grid)):
+                    for c in range(len(grid[0])):
+                        initial_belief_set.add((grid, r, c))
+                self.current_belief_state = frozenset(initial_belief_set)
+                
+            elif algo == "Nhìn thấy một phần (DFS)":
+                from algorithms.complex_env.belief_dfs import sensorless_child_node as belief_child_node
+                grid, x, _ = initial_state
+                initial_belief_set = set()
+                for c in range(len(grid[0])):
+                    initial_belief_set.add((grid, x, c))
+                self.current_belief_state = frozenset(initial_belief_set)
+                
+            current_belief_node = Node(self.current_belief_state)
             self.after(0, self.draw_grid)
+            
+            for i, action in enumerate(path):
+                if not self.is_running: break
+                
+                speed = self.slider_speed.get()
+                delay = max(0.05, 1.0 / (speed * 2))
+                time.sleep(delay)
+                
+                self.log(f"Bước {i+1}: {action}")
+                
+                current_belief_node = belief_child_node(current_belief_node, action)
+                self.current_belief_state = current_belief_node.state
+                
+                self.after(0, self.draw_grid)
+        else:
+            for i, action in enumerate(path):
+                if not self.is_running: break
+                
+                # Slider speed logic
+                speed = self.slider_speed.get()
+                delay = max(0.05, 1.0 / (speed * 2))
+                time.sleep(delay)
+                
+                self.log(f"Bước {i+1}: {action}")
+                if action == "SUCK":
+                    self.env_list[self.vac_x][self.vac_y] = "Clean"
+                elif action == "UP": self.vac_x -= 1
+                elif action == "DOWN": self.vac_x += 1
+                elif action == "RIGHT": self.vac_y += 1
+                elif action == "LEFT": self.vac_y -= 1
+                
+                self.log(f"  -> Máy ở vị trí ({self.vac_x}, {self.vac_y})")
+                
+                self.after(0, self.draw_grid)
             
         if self.is_running:
             self.log("--- HOÀN THÀNH DỌN DẸP ---")
