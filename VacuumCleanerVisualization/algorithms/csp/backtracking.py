@@ -32,28 +32,28 @@ HCMC_DISTRICTS = [
 # Đồ thị kề (adjacency list) – dựa trên địa lý thực tế TPHCM
 # ──────────────────────────────────────────────
 HCMC_NEIGHBORS = {
-    "Quận 1":     ["Quận 3", "Bình Thạnh", "Quận 4", "Phú Nhuận"],
-    "Quận 3":     ["Quận 1", "Phú Nhuận", "Quận 10", "Tân Bình"],
-    "Quận 4":     ["Quận 1", "Quận 7", "Quận 8", "Nhà Bè"],
-    "Quận 5":     ["Quận 6", "Quận 8", "Quận 10", "Quận 11"],
+    "Quận 1":     ["Quận 3", "Quận 5", "Quận 10", "Bình Thạnh", "Quận 4", "Phú Nhuận"],
+    "Quận 3":     ["Quận 1", "Quận 5", "Phú Nhuận", "Quận 10", "Tân Bình"],
+    "Quận 4":     ["Quận 1", "Quận 7"],
+    "Quận 5":     ["Quận 1", "Quận 3", "Quận 6", "Quận 8", "Quận 10", "Quận 11"],
     "Quận 6":     ["Quận 5", "Quận 8", "Quận 11", "Tân Phú", "Bình Tân"],
     "Quận 7":     ["Quận 4", "Nhà Bè", "Bình Chánh", "Quận 8"],
-    "Quận 8":     ["Quận 4", "Quận 5", "Quận 6", "Quận 7", "Bình Chánh", "Bình Tân"],
-    "Quận 10":    ["Quận 3", "Quận 5", "Quận 11", "Tân Bình"],
-    "Quận 11":    ["Quận 5", "Quận 6", "Quận 10", "Tân Phú"],
-    "Quận 12":    ["Gò Vấp", "Tân Bình", "Hóc Môn", "Thủ Đức"],
-    "Bình Thạnh": ["Quận 1", "Phú Nhuận", "Gò Vấp", "Thủ Đức"],
-    "Gò Vấp":    ["Bình Thạnh", "Phú Nhuận", "Tân Bình", "Quận 12", "Hóc Môn"],
+    "Quận 8":     ["Quận 5", "Quận 6", "Quận 7", "Bình Chánh", "Bình Tân"],
+    "Quận 10":    ["Quận 1", "Quận 3", "Quận 5", "Quận 11", "Tân Bình"],
+    "Quận 11":    ["Quận 5", "Quận 6", "Quận 10", "Tân Bình", "Tân Phú"],
+    "Quận 12":    ["Gò Vấp", "Tân Bình", "Tân Phú", "Bình Tân", "Bình Thạnh", "Hóc Môn", "Thủ Đức"],
+    "Bình Thạnh": ["Quận 1", "Phú Nhuận", "Gò Vấp", "Quận 12", "Thủ Đức"],
+    "Gò Vấp":    ["Bình Thạnh", "Phú Nhuận", "Tân Bình", "Quận 12"],
     "Phú Nhuận": ["Quận 1", "Quận 3", "Bình Thạnh", "Gò Vấp", "Tân Bình"],
-    "Tân Bình":  ["Quận 3", "Quận 10", "Phú Nhuận", "Gò Vấp", "Quận 12", "Tân Phú"],
-    "Tân Phú":   ["Quận 11", "Quận 6", "Tân Bình", "Bình Tân"],
-    "Bình Tân":  ["Quận 6", "Quận 8", "Tân Phú", "Bình Chánh", "Hóc Môn"],
-    "Thủ Đức":   ["Bình Thạnh", "Quận 12", "Hóc Môn"],
-    "Nhà Bè":    ["Quận 4", "Quận 7", "Bình Chánh", "Cần Giờ"],
-    "Hóc Môn":   ["Quận 12", "Gò Vấp", "Bình Tân", "Thủ Đức", "Củ Chi"],
-    "Củ Chi":    ["Hóc Môn", "Bình Chánh"],
-    "Bình Chánh": ["Quận 7", "Quận 8", "Bình Tân", "Nhà Bè", "Củ Chi", "Cần Giờ"],
-    "Cần Giờ":   ["Nhà Bè", "Bình Chánh"]
+    "Tân Bình":  ["Quận 3", "Quận 10", "Quận 11", "Phú Nhuận", "Gò Vấp", "Quận 12", "Tân Phú"],
+    "Tân Phú":   ["Quận 11", "Quận 6", "Quận 12", "Tân Bình", "Bình Tân"],
+    "Bình Tân":  ["Quận 6", "Quận 8", "Quận 12", "Tân Phú", "Bình Chánh", "Hóc Môn"],
+    "Thủ Đức":   ["Bình Thạnh", "Quận 12"],
+    "Nhà Bè":    ["Quận 7", "Bình Chánh", "Cần Giờ"],
+    "Hóc Môn":   ["Quận 12", "Bình Tân", "Bình Chánh", "Củ Chi"],
+    "Củ Chi":    ["Hóc Môn"],
+    "Bình Chánh": ["Quận 7", "Quận 8", "Bình Tân", "Nhà Bè", "Hóc Môn"],
+    "Cần Giờ":   ["Nhà Bè"]
 }
 
 # ──────────────────────────────────────────────

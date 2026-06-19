@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from constants import *
 from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search, simulated_annealing, belief_dfs, sensorless_belief_dfs, partially_observable_belief_dfs, and_or_graph_search
-from algorithms import backtracking_search, HCMC_DISTRICTS, HCMC_NEIGHBORS, DISTRICT_POSITIONS, COLOR_HEX
+from algorithms import backtracking_search, HCMC_DISTRICTS, HCMC_NEIGHBORS, DISTRICT_POSITIONS, COLOR_HEX, DISTRICT_POLYGONS
 import time
 import threading
 import random
@@ -60,7 +60,12 @@ class VacuumApp(tk.Tk):
         self.is_running = False
         self.csp_mode = False          # True khi đang ở chế độ CSP
         self.csp_coloring = {}         # Kết quả tô màu hiện tại
-        
+
+        # Zoom & Pan state cho CSP
+        self.csp_zoom = 1.0
+        self.csp_pan_x = 0.0
+        self.csp_pan_y = 0.0
+        self._drag_start = None
         # Room setup
         self.room_var = tk.StringVar(value="Phòng 3x3 (Cơ bản)")
         self.load_environment()
@@ -143,7 +148,7 @@ class VacuumApp(tk.Tk):
         self.acc_complex_env.pack(fill="x", padx=10, pady=5)
         
         self.acc_csp = AccordionMenu(self.sidebar, "Constraint Satisfaction",
-                                     ["Backtracking Search"], self.algo_var)
+                                     ["Backtracking Search", "Backtracking + AC-3", "Min-Conflicts"], self.algo_var)
         self.acc_csp.pack(fill="x", padx=10, pady=5)
         
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
@@ -179,6 +184,15 @@ class VacuumApp(tk.Tk):
         
         # Bắt sự kiện resize để vẽ lại grid cho vừa
         self.canvas.bind("<Configure>", lambda e: self.draw_grid())
+
+        # ── Zoom & Pan cho CSP map ──────────────────────────────
+        self.canvas.bind("<MouseWheel>",       self._on_csp_scroll)    # Windows
+        self.canvas.bind("<Button-4>",         self._on_csp_scroll)    # Linux scroll up
+        self.canvas.bind("<Button-5>",         self._on_csp_scroll)    # Linux scroll down
+        self.canvas.bind("<ButtonPress-1>",    self._on_pan_start)
+        self.canvas.bind("<B1-Motion>",        self._on_pan_move)
+        self.canvas.bind("<ButtonRelease-1>",  self._on_pan_end)
+        self.canvas.bind("<Double-Button-1>",  self._on_zoom_reset)
         
         # Khu vực Final Solution
         self.solution_frame = tk.Frame(self.main_area, bg=COLOR_BG_MAIN)
@@ -297,12 +311,76 @@ class VacuumApp(tk.Tk):
                         if is_slip:
                             self.canvas.create_text(cx, cy - radius - 15, text="Oops! Trượt", font=("Arial", max(8, int(font_size*0.8)), "bold"), fill="red")
 
+    # ──────────────────────────────────────────────────────────────
+    # ZOOM & PAN HANDLERS
+    # ──────────────────────────────────────────────────────────────
+    def _on_csp_scroll(self, event):
+        """Zoom bản đồ CSP vào/ra tại vị trí con trỏ chuột."""
+        if not self.csp_mode:
+            return
+        # Xác định hướng scroll
+        if event.num == 4:      # Linux scroll up
+            delta = 1
+        elif event.num == 5:    # Linux scroll down
+            delta = -1
+        else:                   # Windows
+            delta = 1 if event.delta > 0 else -1
+
+        factor = 1.15 if delta > 0 else (1 / 1.15)
+        old_zoom = self.csp_zoom
+        self.csp_zoom = max(0.5, min(10.0, self.csp_zoom * factor))
+        actual_factor = self.csp_zoom / old_zoom
+
+        # Zoom hướng vào vị trí con trỏ
+        mx, my = event.x, event.y
+        self.csp_pan_x = mx - actual_factor * (mx - self.csp_pan_x)
+        self.csp_pan_y = my - actual_factor * (my - self.csp_pan_y)
+
+        if self.csp_mode:
+            self.after(0, lambda col=dict(self.csp_coloring), st=getattr(self, '_last_step_info', None):
+                       self.draw_csp_map(col, st))
+
+    def _on_pan_start(self, event):
+        if not self.csp_mode:
+            return
+        self._drag_start = (event.x, event.y)
+
+    def _on_pan_move(self, event):
+        if not self.csp_mode or self._drag_start is None:
+            return
+        dx = event.x - self._drag_start[0]
+        dy = event.y - self._drag_start[1]
+        self.csp_pan_x += dx
+        self.csp_pan_y += dy
+        self._drag_start = (event.x, event.y)
+        self.after(0, lambda col=dict(self.csp_coloring), st=getattr(self, '_last_step_info', None):
+                   self.draw_csp_map(col, st))
+
+    def _on_pan_end(self, event):
+        self._drag_start = None
+
+    def _on_zoom_reset(self, event):
+        """Double-click: reset zoom và pan về trạng thái ban đầu."""
+        if not self.csp_mode:
+            return
+        self.csp_zoom = 1.0
+        self.csp_pan_x = 0.0
+        self.csp_pan_y = 0.0
+        self.after(0, lambda col=dict(self.csp_coloring), st=getattr(self, '_last_step_info', None):
+                   self.draw_csp_map(col, st))
+
     def reset_simulation(self):
         self.is_running = False
         self.env_list = [list(row) for row in self.initial_environment]
         self.vac_x, self.vac_y = self.initial_x, self.initial_y
         self.current_belief_state = None
         self.csp_coloring = {}
+        self._last_step_info = None
+
+        # Reset zoom & pan khi bắt đầu lại
+        self.csp_zoom = 1.0
+        self.csp_pan_x = 0.0
+        self.csp_pan_y = 0.0
         
         self.txt_log.configure(state="normal")
         self.txt_log.delete("1.0", "end")
@@ -321,7 +399,7 @@ class VacuumApp(tk.Tk):
         if self.is_running: return
         # Xác định chế độ trước khi reset
         algo = self.algo_var.get()
-        self.csp_mode = (algo == "Backtracking Search")
+        self.csp_mode = algo in ("Backtracking Search", "Backtracking + AC-3", "Min-Conflicts")
         self.reset_simulation()
         self.is_running = True
         self.btn_start.configure(state="disabled")
@@ -334,6 +412,9 @@ class VacuumApp(tk.Tk):
     # ──────────────────────────────────────────────────────────────
     def draw_csp_map(self, coloring, step_info):
         """Vẽ bản đồ đồ thị quận TPHCM với tô màu hiện tại."""
+        # Lưu step_info mới nhất để pan/zoom có thể vẽ lại
+        self._last_step_info = step_info
+
         self.canvas.delete("all")
         self.update_idletasks()
         w = self.canvas.winfo_width()
@@ -344,57 +425,94 @@ class VacuumApp(tk.Tk):
         margin_x, margin_y = 40, 40
         usable_w = w - 2 * margin_x
         usable_h = h - 2 * margin_y
-        node_r = max(18, min(usable_w, usable_h) // 28)
+
+        # Áp dụng zoom & pan: hàm chuyển đổi tọa độ normalized -> pixel
+        z = self.csp_zoom
+        px0 = self.csp_pan_x  # pan offset
+        py0 = self.csp_pan_y
+
+        def to_screen(nx, ny):
+            sx = margin_x + nx * usable_w
+            sy = margin_y + ny * usable_h
+            # Áp dụng zoom quanh tâm canvas
+            cx = w / 2
+            cy = (h - 55) / 2  # Trừ overlay phía dưới
+            sx = cx + (sx - cx) * z + px0
+            sy = cy + (sy - cy) * z + py0
+            return sx, sy
 
         def pos(district):
             nx, ny = DISTRICT_POSITIONS[district]
-            return (margin_x + nx * usable_w, margin_y + ny * usable_h)
+            return to_screen(nx, ny)
 
-        # Vẽ cạnh
-        for d, neighbors in HCMC_NEIGHBORS.items():
-            x1, y1 = pos(d)
-            for nb in neighbors:
-                if nb > d:   # tránh vẽ đôi
-                    x2, y2 = pos(nb)
-                    self.canvas.create_line(x1, y1, x2, y2,
-                                            fill="#CCCCCC", width=1, dash=(4, 3))
+        current = step_info["current"] if step_info else None
+
+        def get_center(district):
+            if district in DISTRICT_POLYGONS:
+                all_pts = []
+                for poly_pts in DISTRICT_POLYGONS[district]:
+                    all_pts.extend(poly_pts)
+                if all_pts:
+                    cx = sum(x for x, y in all_pts) / len(all_pts)
+                    cy = sum(y for x, y in all_pts) / len(all_pts)
+                    return to_screen(cx, cy)
+            return pos(district)
+
+        # Vẽ polygon
+        for d in HCMC_DISTRICTS:
+            if d in DISTRICT_POLYGONS:
+                color_name = coloring.get(d)
+                fill = COLOR_HEX.get(color_name, "#AAAAAA")
+
+                # Hiệu ứng: node đang xét thì viền đậm hơn
+                if step_info and d == current:
+                    outline = "#FFFFFF"
+                    outline_w = 3
+                else:
+                    outline = "#444444"
+                    outline_w = 1
+
+                for poly_pts in DISTRICT_POLYGONS[d]:
+                    screen_pts = []
+                    for (nx, ny) in poly_pts:
+                        sx, sy = to_screen(nx, ny)
+                        screen_pts.extend([sx, sy])
+
+                    if screen_pts:
+                        self.canvas.create_polygon(screen_pts, fill=fill, outline=outline, width=outline_w)
 
         # Highlight cạnh đang vi phạm ràng buộc (nếu có)
-        current = step_info["current"] if step_info else None
         if current and coloring.get(current):
-            cx, cy = pos(current)
+            cx, cy = get_center(current)
             for nb in HCMC_NEIGHBORS[current]:
                 if coloring.get(nb) == coloring.get(current):
-                    nx2, ny2 = pos(nb)
+                    nx2, ny2 = get_center(nb)
                     self.canvas.create_line(cx, cy, nx2, ny2,
-                                            fill="#FF0000", width=3)
+                                            fill="#FF0000", width=4, dash=(8, 4))
+        
+        # Draw arc consistency check line
+        if step_info and step_info.get("action") == "revise":
+            target = step_info.get("target")
+            if target and target in DISTRICT_POSITIONS and current in DISTRICT_POSITIONS:
+                cx, cy = get_center(current)
+                tx, ty = get_center(target)
+                self.canvas.create_line(tx, ty, cx, cy, fill="#FF69B4", width=3, arrow=tk.LAST, dash=(4, 4))
 
-        # Vẽ node
+
+        # Highlight viền quận đang xét (vẽ lại polygon với viền sáng)
+        if current and current in DISTRICT_POLYGONS:
+            for poly_pts in DISTRICT_POLYGONS[current]:
+                screen_pts = []
+                for (nx, ny) in poly_pts:
+                    sx, sy = to_screen(nx, ny)
+                    screen_pts.extend([sx, sy])
+                if screen_pts:
+                    self.canvas.create_polygon(screen_pts, fill="", outline="#FFD700", width=3)
+
+        # Vẽ Tên quận
         for d in HCMC_DISTRICTS:
-            px, py = pos(d)
+            px, py = get_center(d)
             color_name = coloring.get(d)
-            fill = COLOR_HEX.get(color_name, "#AAAAAA")
-
-            # Hiệu ứng: node đang xét thì viền đậm hơn
-            if step_info and d == current:
-                outline = "#FFFFFF"
-                outline_w = 3
-            else:
-                outline = "#555555"
-                outline_w = 1
-
-            # Shadow
-            self.canvas.create_oval(
-                px - node_r + 3, py - node_r + 3,
-                px + node_r + 3, py + node_r + 3,
-                fill="#888888", outline=""
-            )
-            # Node
-            self.canvas.create_oval(
-                px - node_r, py - node_r,
-                px + node_r, py + node_r,
-                fill=fill, outline=outline, width=outline_w
-            )
 
             # Tên quận rút gọn
             short = d.replace("Quận ", "Q").replace("Bình Thạnh", "B.Thạnh")\
@@ -404,12 +522,29 @@ class VacuumApp(tk.Tk):
                       .replace("Tân Bình", "T.Bình").replace("Tân Phú", "T.Phú")\
                       .replace("Thủ Đức", "T.Đức").replace("Gò Vấp", "G.Vấp")\
                       .replace("Phú Nhuận", "P.Nhuận")
-            fsize = max(7, node_r // 2)
+            fsize = max(7, int(min(usable_w, usable_h) // 40 * z))
+            fsize = max(7, min(fsize, 18))  # giới hạn font
+
+            # Màu chữ tuỳ màu nền
             text_fill = "#111111" if color_name in ("Vàng", "Xanh lá") else "#FFFFFF"
             if color_name is None:
-                text_fill = "#222222"
+                text_fill = "#DDDDDD"
+
+            fw = "bold"
+            if d == current:
+                self.canvas.create_text(px+1, py+1, text=short,
+                                        font=("Arial", fsize, fw), fill="#000000")
             self.canvas.create_text(px, py, text=short,
-                                    font=("Arial", fsize, "bold"), fill=text_fill)
+                                    font=("Arial", fsize, fw), fill=text_fill)
+
+        # Overlay hướng dẫn zoom (góc trên phải)
+        self.canvas.create_text(w - 10, 10, text="🖱 Scroll: Zoom | Kéo: Di chuyển | Double-click: Reset",
+                                font=("Arial", 8), fill="#888888", anchor="ne")
+
+        # Overlay thông tin zoom
+        zoom_pct = int(self.csp_zoom * 100)
+        self.canvas.create_text(10, 10, text=f"Zoom: {zoom_pct}%",
+                                font=("Arial", 9, "bold"), fill="#AAAAAA", anchor="nw")
 
         # Overlay thông tin bước
         if step_info:
@@ -434,10 +569,19 @@ class VacuumApp(tk.Tk):
         self.log(f"--- Bắt đầu mô phỏng: {algo} ---")
 
         # ── CSP MODE ──────────────────────────────────────────────
-        if algo == "Backtracking Search":
-            self.log("Đang chạy Backtracking Search (Forward Checking)...")
-            steps = backtracking_search()
-            self.log(f"Tổng số bước (kể cả backtrack): {len(steps)}")
+        if algo in ("Backtracking Search", "Backtracking + AC-3", "Min-Conflicts"):
+            self.log(f"Đang chạy {algo}...")
+            
+            if algo == "Backtracking Search":
+                steps = backtracking_search()
+            elif algo == "Backtracking + AC-3":
+                from algorithms import mac_search
+                steps = mac_search()
+            else:
+                from algorithms import min_conflicts_search
+                steps = min_conflicts_search()
+                
+            self.log(f"Tổng số bước (kể cả backtrack/reassign): {len(steps)}")
 
             for i, step in enumerate(steps):
                 if not self.is_running:
