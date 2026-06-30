@@ -20,6 +20,9 @@ def bfs1(initial_state):
     reached = set()
     
     while frontier:
+        import algorithms.common as common
+        common.max_frontier_size = max(common.max_frontier_size, len(frontier))
+        
         node = frontier.popleft()
         frontier_states.remove(node.state)
         reached.add(node.state)
@@ -53,6 +56,9 @@ def bfs2(initial_state):
     explored = set()
     
     while frontier:
+        import algorithms.common as common
+        common.max_frontier_size = max(common.max_frontier_size, len(frontier))
+        
         node = frontier.popleft()
         frontier_states.remove(node.state)
         explored.add(node.state)

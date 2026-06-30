@@ -1,9 +1,16 @@
 class Node:
+    _id_counter = 0
+    
     def __init__(self, state, parent=None, action=None, path_cost=0):
         self.state = state
         self.parent = parent
         self.action = action
         self.path_cost = path_cost
+        self.id = Node._id_counter
+        Node._id_counter += 1
+        
+        global nodes_generated
+        nodes_generated += 1
 
     def __lt__(self, other):
         return self.path_cost < other.path_cost
@@ -36,3 +43,7 @@ def solution(node):
         path.append(node.action)
         node = node.parent
     return path[::-1] 
+    
+nodes_generated = 0
+max_frontier_size = 0
+current_terrain_matrix = []

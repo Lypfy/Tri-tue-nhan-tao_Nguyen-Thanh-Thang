@@ -23,6 +23,9 @@ def dfs1(initial_state):
     reached = set()
     
     while frontier:
+        import algorithms.common as common
+        common.max_frontier_size = max(common.max_frontier_size, len(frontier))
+        
         node = frontier.pop()
         frontier_states.remove(node.state)
         reached.add(node.state)
@@ -62,6 +65,9 @@ def dfs2(initial_state):
     explored = set()
     
     while frontier:
+        import algorithms.common as common
+        common.max_frontier_size = max(common.max_frontier_size, len(frontier))
+        
         node = frontier.pop()
         frontier_states.remove(node.state)
         

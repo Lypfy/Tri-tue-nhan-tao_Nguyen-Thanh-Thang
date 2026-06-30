@@ -26,11 +26,18 @@ def slippery_results(state, action):
     # Remove duplicates if it hit a wall (state is added twice)
     return list(set(outcomes))
 
-def and_or_graph_search(initial_state):
+def and_or_graph_search(initial_state, log_callback=None):
+    def log(msg):
+        if log_callback: log_callback(msg)
+
+    log("Bắt đầu AND-OR Graph Search cho môi trường không xác định (nhiều kết quả)")
+
     def or_search(state, path):
         if is_goal(state):
+            log(f"  [OR] Trạng thái {state[1:]} là đích.")
             return []
         if state in path:
+            log(f"  [OR] Phát hiện chu trình tại {state[1:]}. Yêu cầu thử lại (RETRY).")
             return "RETRY" # Detect cycle and return a retry instruction
             
         grid, x, y = state
@@ -42,6 +49,7 @@ def and_or_graph_search(initial_state):
         
         for action in valid_actions:
             results = slippery_results(state, action)
+            log(f"  [OR] Khám phá hành động {action} từ {state[1:]} (có {len(results)} kết quả có thể xảy ra)")
             plan = and_search(results, path + [state])
             if plan != 'failure':
                 return [action, plan]
@@ -52,8 +60,10 @@ def and_or_graph_search(initial_state):
         plan = {}
         has_progress = False
         for s in states:
+            log(f"    [AND] Xem xét kết quả {s[1:]}...")
             plan_s = or_search(s, path)
             if plan_s == 'failure':
+                log(f"    [AND] Thất bại tại nhánh {s[1:]}!")
                 return 'failure'
             if plan_s != "RETRY":
                 has_progress = True
@@ -61,8 +71,14 @@ def and_or_graph_search(initial_state):
             
         # A valid cyclic plan must have at least one branch that makes progress
         if not has_progress:
+            log(f"    [AND] Tất cả các nhánh đều lặp chu trình. Kế hoạch thất bại.")
             return 'failure'
             
         return plan
 
-    return or_search(initial_state, [])
+    result = or_search(initial_state, [])
+    if result == 'failure':
+        log("Không tìm thấy conditional plan!")
+    else:
+        log("Đã tìm thấy conditional plan thành công!")
+    return result

@@ -1,11 +1,7 @@
 import heapq
 from algorithms.common import Node, is_goal, child_node, solution
-from constants import TERRAIN_MATRIX, COST_RUG, COST_NORMAL
-
-TERRAIN_COST = [
-    [COST_RUG if cell == "Rug" else COST_NORMAL for cell in row]
-    for row in TERRAIN_MATRIX
-]
+from constants import COST_RUG, COST_NORMAL
+import algorithms.common as common
 
 def get_actions_ucs(state):
     grid, x, y = state
@@ -25,11 +21,14 @@ def ucs_standard(initial_state):
     if is_goal(node.state): return []
     
     frontier = []
-    heapq.heappush(frontier, (node.path_cost, id(node), node))
+    heapq.heappush(frontier, (node.path_cost, node.id, node))
     frontier_states = {node.state: node}
     explored = set()
     
     while frontier:
+        import algorithms.common as common
+        common.max_frontier_size = max(common.max_frontier_size, len(frontier))
+        
         cost, _, node = heapq.heappop(frontier)
         
         if node.state in explored:
@@ -47,17 +46,18 @@ def ucs_standard(initial_state):
             if action == "SUCK":
                 move_cost = 1
             else:
-                move_cost = TERRAIN_COST[new_x][new_y]
+                cell_type = common.current_terrain_matrix[new_x][new_y]
+                move_cost = COST_RUG if cell_type == "Rug" else COST_NORMAL
                 
             child.path_cost = node.path_cost + move_cost
             
             if child.state not in explored and child.state not in frontier_states:
-                heapq.heappush(frontier, (child.path_cost, id(child), child))
+                heapq.heappush(frontier, (child.path_cost, child.id, child))
                 frontier_states[child.state] = child
             elif child.state in frontier_states:
                 existing_node = frontier_states[child.state]
                 if child.path_cost < existing_node.path_cost:
-                    heapq.heappush(frontier, (child.path_cost, id(child), child))
+                    heapq.heappush(frontier, (child.path_cost, child.id, child))
                     frontier_states[child.state] = child
                     
     return None

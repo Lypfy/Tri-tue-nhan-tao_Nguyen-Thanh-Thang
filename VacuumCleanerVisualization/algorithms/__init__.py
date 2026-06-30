@@ -30,3 +30,5 @@ from algorithms.csp.backtracking import (
 from algorithms.csp.ac3 import mac_search
 from algorithms.csp.min_conflicts import min_conflicts_search
 from algorithms.csp.map_data import DISTRICT_POLYGONS
+
+from algorithms.adversarial_search.minimax import minimax_generator, play_tictactoe_ai_vs_ai

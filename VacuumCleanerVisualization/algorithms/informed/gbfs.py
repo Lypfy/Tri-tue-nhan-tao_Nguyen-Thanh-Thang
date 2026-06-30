@@ -20,11 +20,14 @@ def gbfs(initial_state):
     if is_goal(node.state): return []
     
     frontier = []
-    heapq.heappush(frontier, (heuristic(node.state), id(node), node))
+    heapq.heappush(frontier, (heuristic(node.state), node.id, node))
     frontier_states = {node.state}
     explored = set()
     
     while frontier:
+        import algorithms.common as common
+        common.max_frontier_size = max(common.max_frontier_size, len(frontier))
+        
         h, _, node = heapq.heappop(frontier)
         
         if node.state in explored:
@@ -39,7 +42,7 @@ def gbfs(initial_state):
             child = child_node(node, action)
             
             if child.state not in explored and child.state not in frontier_states:
-                heapq.heappush(frontier, (heuristic(child.state), id(child), child))
+                heapq.heappush(frontier, (heuristic(child.state), child.id, child))
                 frontier_states.add(child.state)
                 
     return None

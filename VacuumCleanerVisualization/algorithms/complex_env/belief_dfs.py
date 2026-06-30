@@ -33,29 +33,42 @@ def belief_child_node(belief_node, action):
         
     return Node(frozenset(new_belief_state), belief_node, action)
 
-def belief_dfs(initial_state):
+def belief_dfs(initial_state, log_callback=None):
     """
     DFS cho môi trường phức tạp (Belief State Search).
     """
+    def log(msg):
+        if log_callback: log_callback(msg)
+
     initial_belief = frozenset([initial_state])
     
     node = Node(initial_belief)
-    if belief_is_goal(node.state): return []
+    if belief_is_goal(node.state): 
+        log("Trạng thái ban đầu đã là đích!")
+        return []
     
     frontier = [node]
     explored = set()
     frontier_states = {node.state}
     
+    log(f"Bắt đầu Belief DFS với tập niềm tin có kích thước {len(initial_belief)}")
+    
+    step = 0
     while frontier:
         node = frontier.pop()
         frontier_states.remove(node.state)
         
+        step += 1
+        if step % 10 == 0:
+            log(f"Đã duyệt {step} node, frontier size: {len(frontier)}")
+            
         if node.state in explored:
             continue
             
         explored.add(node.state)
         
         if belief_is_goal(node.state): 
+            log(f"Tìm thấy đích sau khi duyệt {step} node!")
             return solution(node)
             
         actions = get_actions_belief(node.state)
@@ -66,6 +79,7 @@ def belief_dfs(initial_state):
                 frontier.append(child)
                 frontier_states.add(child.state)
                 
+    log("Không tìm thấy đường đi!")
     return None
 
 def sensorless_child_node(belief_node, action):
@@ -90,11 +104,14 @@ def sensorless_child_node(belief_node, action):
         
     return Node(frozenset(new_belief_state), belief_node, action)
 
-def sensorless_belief_dfs(initial_state):
+def sensorless_belief_dfs(initial_state, log_callback=None):
     """
     DFS cho môi trường Sensorless (mù).
     Tạo initial_belief chứa MỌI vị trí (x,y) có thể trong phòng.
     """
+    def log(msg):
+        if log_callback: log_callback(msg)
+
     grid, _, _ = initial_state
     
     # Khởi tạo tập niềm tin: robot có thể ở bất kỳ ô nào trong phòng
@@ -106,7 +123,9 @@ def sensorless_belief_dfs(initial_state):
     initial_belief = frozenset(initial_belief_set)
     node = Node(initial_belief)
     
-    if belief_is_goal(node.state): return []
+    if belief_is_goal(node.state): 
+        log("Trạng thái ban đầu đã là đích!")
+        return []
     
     frontier = [node]
     explored = set()
@@ -114,16 +133,24 @@ def sensorless_belief_dfs(initial_state):
     
     actions = ["UP", "DOWN", "LEFT", "RIGHT", "SUCK"]
     
+    log(f"Bắt đầu Sensorless DFS với tập niềm tin có kích thước {len(initial_belief_set)} (mọi vị trí có thể)")
+    step = 0
+    
     while frontier:
         node = frontier.pop()
         frontier_states.remove(node.state)
         
+        step += 1
+        if step % 50 == 0:
+            log(f"Đã duyệt {step} node, frontier size: {len(frontier)}")
+            
         if node.state in explored:
             continue
             
         explored.add(node.state)
         
         if belief_is_goal(node.state): 
+            log(f"Tìm thấy đích sau khi duyệt {step} node!")
             return solution(node)
             
         for action in reversed(actions):
@@ -133,4 +160,5 @@ def sensorless_belief_dfs(initial_state):
                 frontier.append(child)
                 frontier_states.add(child.state)
                 
+    log("Không tìm thấy đường đi!")
     return None

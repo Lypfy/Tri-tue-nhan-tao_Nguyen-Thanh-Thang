@@ -1,21 +1,25 @@
 import sys
 from algorithms.common import Node, is_goal, child_node, solution
 from algorithms.informed.heuristic import heuristic
-from algorithms.informed.a_star import get_actions_astar, TERRAIN_COST
+from algorithms.informed.a_star import get_actions_astar
+from constants import COST_RUG, COST_NORMAL
+import algorithms.common as common
 
 def ida_star(initial_state):
     root = Node(initial_state, path_cost=0)
     bound = heuristic(root.state)
     
     while True:
-        t, path_node = search(root, 0, bound)
+        t, path_node = search(root, 0, bound, 1)
         if t == "FOUND":
             return solution(path_node)
         if t == float('inf'):
             return None
         bound = t
 
-def search(node, g, bound):
+def search(node, g, bound, depth):
+    common.max_frontier_size = max(common.max_frontier_size, depth)
+    
     f = g + heuristic(node.state)
     if f > bound:
         return f, None
@@ -31,7 +35,8 @@ def search(node, g, bound):
         if action == "SUCK":
             move_cost = 1
         else:
-            move_cost = TERRAIN_COST[new_x][new_y]
+            cell_type = common.current_terrain_matrix[new_x][new_y]
+            move_cost = COST_RUG if cell_type == "Rug" else COST_NORMAL
             
         child.path_cost = g + move_cost
         
@@ -45,7 +50,7 @@ def search(node, g, bound):
             curr = curr.parent
             
         if not is_cycle:
-            t, path_node = search(child, child.path_cost, bound)
+            t, path_node = search(child, child.path_cost, bound, depth + 1)
             if t == "FOUND":
                 return "FOUND", path_node
             if t < min_cost:

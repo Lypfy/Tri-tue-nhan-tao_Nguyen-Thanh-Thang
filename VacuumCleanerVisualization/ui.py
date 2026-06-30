@@ -3,6 +3,7 @@ from tkinter import ttk
 from constants import *
 from algorithms import bfs1, bfs2, dfs1, dfs2, ucs_standard, iddfs, gbfs, a_star, ida_star, simple_hill_climbing, steepest_ascent_hill_climbing, stochastic_hill_climbing, random_restart_hill_climbing, local_beam_search, simulated_annealing, belief_dfs, sensorless_belief_dfs, partially_observable_belief_dfs, and_or_graph_search
 from algorithms import backtracking_search, HCMC_DISTRICTS, HCMC_NEIGHBORS, DISTRICT_POSITIONS, COLOR_HEX, DISTRICT_POLYGONS
+from algorithms import play_tictactoe_ai_vs_ai
 import time
 import threading
 import random
@@ -59,6 +60,7 @@ class VacuumApp(tk.Tk):
         
         self.is_running = False
         self.csp_mode = False          # True khi đang ở chế độ CSP
+        self.tictactoe_mode = False
         self.csp_coloring = {}         # Kết quả tô màu hiện tại
 
         # Zoom & Pan state cho CSP
@@ -67,7 +69,7 @@ class VacuumApp(tk.Tk):
         self.csp_pan_y = 0.0
         self._drag_start = None
         # Room setup
-        self.room_var = tk.StringVar(value="Phòng 3x3 (Cơ bản)")
+        self.room_var = tk.StringVar(value="Phòng 5x5 (Cơ bản)")
         self.load_environment()
         
         self.setup_sidebar()
@@ -78,14 +80,29 @@ class VacuumApp(tk.Tk):
 
     def load_environment(self):
         env_key = self.room_var.get()
-        config = ROOM_ENVIRONMENTS.get(env_key, ROOM_ENVIRONMENTS["Phòng 3x3 (Cơ bản)"])
-        self.grid_size = config["GRID_SIZE"]
-        self.initial_environment = config["INITIAL_ENVIRONMENT"]
-        self.initial_x, self.initial_y = config["INITIAL_X"], config["INITIAL_Y"]
-        self.terrain_matrix = config["TERRAIN_MATRIX"]
-        self.env_list = [list(row) for row in self.initial_environment]
-        self.vac_x, self.vac_y = self.initial_x, self.initial_y
-        self.current_belief_state = None
+        config = ENVIRONMENTS.get(env_key, ENVIRONMENTS["Phòng 5x5 (Cơ bản)"])
+        self.env_type = config.get("TYPE", "Grid")
+        
+        if self.env_type == "Grid":
+            self.csp_mode = False
+            self.tictactoe_mode = False
+            self.grid_size = config["GRID_SIZE"]
+            self.initial_environment = config["INITIAL_ENVIRONMENT"]
+            self.initial_x, self.initial_y = config["INITIAL_X"], config["INITIAL_Y"]
+            self.terrain_matrix = config["TERRAIN_MATRIX"]
+            self.env_list = [list(row) for row in self.initial_environment]
+            self.vac_x, self.vac_y = self.initial_x, self.initial_y
+            self.current_belief_state = None
+        elif self.env_type == "CSP":
+            self.csp_mode = True
+            self.tictactoe_mode = False
+            self.csp_coloring = {}
+            self._last_step_info = None
+        elif self.env_type == "TicTacToe":
+            self.csp_mode = False
+            self.tictactoe_mode = True
+            self.tictactoe_board = [["", "", ""], ["", "", ""], ["", "", ""]]
+            self._last_step_info = None
 
     def on_room_change(self, event):
         if self.is_running: return
@@ -124,7 +141,7 @@ class VacuumApp(tk.Tk):
         
         lbl_room = tk.Label(self.sidebar, text="Room Environment", bg=COLOR_BG_SIDEBAR, fg="white", font=("Arial", 9))
         lbl_room.pack(pady=(5, 0))
-        self.cb_room = ttk.Combobox(self.sidebar, textvariable=self.room_var, values=list(ROOM_ENVIRONMENTS.keys()), state="readonly")
+        self.cb_room = ttk.Combobox(self.sidebar, textvariable=self.room_var, values=list(ENVIRONMENTS.keys()), state="readonly")
         self.cb_room.pack(pady=5, padx=10, fill="x")
         self.cb_room.bind("<<ComboboxSelected>>", self.on_room_change)
         
@@ -151,6 +168,27 @@ class VacuumApp(tk.Tk):
                                      ["Backtracking Search", "Backtracking + AC-3", "Min-Conflicts"], self.algo_var)
         self.acc_csp.pack(fill="x", padx=10, pady=5)
         
+        self.acc_adversarial = AccordionMenu(self.sidebar, "Tìm kiếm đối kháng",
+                                             ["Minimax", "Alpha-Beta Pruning"], self.algo_var)
+        self.acc_adversarial.pack(fill="x", padx=10, pady=5)
+        
+        # Difficulty Dropdown
+        self.lbl_diff = tk.Label(self.sidebar, text="Độ khó AI (Tic-Tac-Toe)", bg=COLOR_BG_SIDEBAR, fg="white", font=("Arial", 9))
+        self.ai_difficulty_var = tk.StringVar(value="Khó")
+        self.combo_difficulty = ttk.Combobox(self.sidebar, textvariable=self.ai_difficulty_var, values=["Dễ", "Trung bình", "Khó"], state="readonly")
+        
+        # Hàm xử lý sự kiện đổi thuật toán
+        def on_algo_change(*args):
+            if self.algo_var.get() in ["Minimax", "Alpha-Beta Pruning"]:
+                self.lbl_diff.pack(pady=(10, 0))
+                self.combo_difficulty.pack(pady=5, padx=20, fill="x")
+            else:
+                self.lbl_diff.pack_forget()
+                self.combo_difficulty.pack_forget()
+                
+        self.algo_var.trace_add("write", on_algo_change)
+        on_algo_change() # Khởi tạo trạng thái ban đầu
+        
         self.btn_start = tk.Button(self.sidebar, text="Start Visualization", bg=COLOR_BTN_START, fg="white", 
                                    activebackground="#388E3C", activeforeground="white", font=("Arial", 11, "bold"),
                                    relief="flat", command=self.start_simulation)
@@ -163,7 +201,7 @@ class VacuumApp(tk.Tk):
         
         lbl_speed = tk.Label(self.sidebar, text="Animation Speed", bg=COLOR_BG_SIDEBAR, fg="white", font=("Arial", 9))
         lbl_speed.pack(pady=(20, 0))
-        self.slider_speed = ttk.Scale(self.sidebar, from_=0.1, to=4.0, orient="horizontal")
+        self.slider_speed = ttk.Scale(self.sidebar, from_=0.1, to=20.0, orient="horizontal")
         self.slider_speed.set(1.0)
         self.slider_speed.pack(pady=10, padx=20, fill="x")
 
@@ -189,7 +227,7 @@ class VacuumApp(tk.Tk):
         self.canvas.bind("<MouseWheel>",       self._on_csp_scroll)    # Windows
         self.canvas.bind("<Button-4>",         self._on_csp_scroll)    # Linux scroll up
         self.canvas.bind("<Button-5>",         self._on_csp_scroll)    # Linux scroll down
-        self.canvas.bind("<ButtonPress-1>",    self._on_pan_start)
+        self.canvas.bind("<ButtonPress-1>",    self._on_canvas_click)
         self.canvas.bind("<B1-Motion>",        self._on_pan_move)
         self.canvas.bind("<ButtonRelease-1>",  self._on_pan_end)
         self.canvas.bind("<Double-Button-1>",  self._on_zoom_reset)
@@ -213,7 +251,12 @@ class VacuumApp(tk.Tk):
         lbl_log.pack(pady=10)
         
         self.txt_log = tk.Text(self.log_frame, width=1, height=1, font=("Consolas", 9), bg="white", fg="black", relief="solid", bd=1)
-        self.txt_log.pack(fill="both", expand=True)
+        
+        self.log_scroll = ttk.Scrollbar(self.log_frame, orient="vertical", command=self.txt_log.yview)
+        self.txt_log.configure(yscrollcommand=self.log_scroll.set)
+        
+        self.log_scroll.pack(side="right", fill="y")
+        self.txt_log.pack(side="left", fill="both", expand=True)
         self.txt_log.configure(state="disabled")
 
     def log(self, message):
@@ -369,11 +412,76 @@ class VacuumApp(tk.Tk):
         self.after(0, lambda col=dict(self.csp_coloring), st=getattr(self, '_last_step_info', None):
                    self.draw_csp_map(col, st))
 
+    def _on_canvas_click(self, event):
+        if self.csp_mode:
+            self._on_pan_start(event)
+        elif getattr(self, 'tictactoe_mode', False) and self.is_running:
+            self.handle_tictactoe_click(event.x, event.y)
+
+    def handle_tictactoe_click(self, x, y):
+        # Không làm gì cả vì giờ là chế độ AI tự đánh (AI vs AI)
+        return
+
+    def auto_play_tictactoe(self):
+        from algorithms.adversarial_search.minimax import minimax_score, alpha_beta_score, check_winner, get_available_moves
+        import time
+        import random
+        
+        while self.is_running:
+            time.sleep(0.5)
+            
+            if not self.is_running:
+                break
+                
+            player = getattr(self, 'tictactoe_current_player', "X")
+            is_max = (player == "X")
+            
+            algo = self.algo_var.get()
+            if algo == "Alpha-Beta Pruning":
+                best_score, best_move = alpha_beta_score(self.tictactoe_board, is_max, log_callback=self.log)
+            else:
+                best_score, best_move = minimax_score(self.tictactoe_board, is_max)
+            
+            difficulty = getattr(self, "ai_difficulty_var", None)
+            diff_level = difficulty.get() if difficulty else "Khó"
+            
+            moves = get_available_moves(self.tictactoe_board)
+            if moves:
+                if diff_level == "Dễ" and random.random() < 0.7:
+                    best_move = random.choice(moves)
+                    self.log(f"AI ({player}) chọn ngẫu nhiên (Dễ)")
+                elif diff_level == "Trung bình" and random.random() < 0.3:
+                    best_move = random.choice(moves)
+                    self.log(f"AI ({player}) chọn ngẫu nhiên (Trung bình)")
+                    
+            if self.is_running and best_move:
+                self.tictactoe_board[best_move[0]][best_move[1]] = player
+                self.log(f"AI ({player}) đánh vào ô {best_move} -> Điểm kỳ vọng: {best_score}")
+                
+                board_copy = [row[:] for row in self.tictactoe_board]
+                self.after(0, lambda brd=board_copy: self.draw_tictactoe(brd, None))
+                
+                winner = check_winner(self.tictactoe_board)
+                if winner:
+                    self.log(f"Kết thúc: {winner}")
+                    self.set_solution_text(f"Kết thúc: {winner}")
+                    self.is_running = False
+                    self.after(0, lambda: self.btn_start.configure(state="normal"))
+                    break
+                else:
+                    self.tictactoe_current_player = "O" if player == "X" else "X"
+
     def reset_simulation(self):
         self.is_running = False
-        self.env_list = [list(row) for row in self.initial_environment]
-        self.vac_x, self.vac_y = self.initial_x, self.initial_y
-        self.current_belief_state = None
+        
+        if hasattr(self, 'env_type') and self.env_type == "Grid":
+            self.env_list = [list(row) for row in self.initial_environment]
+            self.vac_x, self.vac_y = self.initial_x, self.initial_y
+            self.current_belief_state = None
+        elif hasattr(self, 'env_type') and self.env_type == "TicTacToe":
+            self.tictactoe_board = [["", "", ""], ["", "", ""], ["", "", ""]]
+            self._last_step_info = None
+        
         self.csp_coloring = {}
         self._last_step_info = None
 
@@ -391,15 +499,17 @@ class VacuumApp(tk.Tk):
         # Chọn kiểu vẽ tuỳ theo chế độ
         if self.csp_mode:
             self.draw_csp_map({}, None)
+        elif getattr(self, 'tictactoe_mode', False):
+            self.draw_tictactoe(self.tictactoe_board, None)
         else:
             self.draw_grid()
         self.btn_start.configure(state="normal")
 
     def start_simulation(self):
         if self.is_running: return
-        # Xác định chế độ trước khi reset
-        algo = self.algo_var.get()
-        self.csp_mode = algo in ("Backtracking Search", "Backtracking + AC-3", "Min-Conflicts")
+        # Đảm bảo csp_mode được lấy từ env_type để đúng bản đồ đang hiển thị
+        self.csp_mode = (self.env_type == "CSP")
+        self.tictactoe_mode = (self.env_type == "TicTacToe")
         self.reset_simulation()
         self.is_running = True
         self.btn_start.configure(state="disabled")
@@ -562,11 +672,84 @@ class VacuumApp(tk.Tk):
                                     text=f"Đã tô: {assigned}/{total} quận",
                                     font=("Arial", 9), fill="#DDDDDD")
 
+    def draw_tictactoe(self, board, step_info):
+        self._last_step_info = step_info
+        self.canvas.delete("all")
+        self.update_idletasks()
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        if w <= 1 or h <= 1:
+            return
+
+        # Kích thước bàn cờ
+        board_size = min(w, h) * 0.8
+        cell_size = board_size / 3
+        offset_x = (w - board_size) / 2
+        offset_y = (h - board_size) / 2
+
+        # Highlight ô đang xét nếu có target
+        target = step_info.get("target") if step_info else None
+        if target:
+            r, c = target
+            tx = offset_x + c * cell_size
+            ty = offset_y + r * cell_size
+            self.canvas.create_rectangle(tx, ty, tx + cell_size, ty + cell_size, fill="#FFFF99", outline="")
+
+        # Lấy trạng thái thực tế
+        real_board = getattr(self, "real_tictactoe_board", None) or board
+
+        # Vẽ lưới
+        for i in range(1, 3):
+            # Dọc
+            x_line = offset_x + i * cell_size
+            self.canvas.create_line(x_line, offset_y, x_line, offset_y + board_size, fill="#444444", width=4)
+            # Ngang
+            y_line = offset_y + i * cell_size
+            self.canvas.create_line(offset_x, y_line, offset_x + board_size, y_line, fill="#444444", width=4)
+
+        # Vẽ X, O
+        for r in range(3):
+            for c in range(3):
+                val = board[r][c]
+                real_val = real_board[r][c]
+                if val:
+                    cx = offset_x + c * cell_size + cell_size / 2
+                    cy = offset_y + r * cell_size + cell_size / 2
+                    
+                    if val != real_val:
+                        # Điểm khác biệt (đang giả định)
+                        color = "#F5B041" if val == "X" else "#5DADE2"
+                        self.canvas.create_text(cx, cy, text=val, font=("Arial", int(cell_size * 0.6), "italic"), fill=color)
+                    else:
+                        color = COLOR_X if val == "X" else COLOR_O
+                        self.canvas.create_text(cx, cy, text=val, font=("Arial", int(cell_size * 0.6), "bold"), fill=color)
+
+        # Overlay thông báo
+        if step_info:
+            msg = step_info.get("message", "")
+            action = step_info.get("action", "")
+            
+            if action in ["try", "backtrack", "leaf", "choose"]:
+                msg = "[AI ĐANG TÍNH TRƯỚC] " + msg
+                
+            bg_color = {"try": "#1A472A", "backtrack": "#7B1818", "choose": "#1A3A6A", "start": "#333333", "end": "#8E44AD"}.get(action, "#333333")
+            self.canvas.create_rectangle(10, h - 55, w - 10, h - 10, fill=bg_color, outline="")
+            self.canvas.create_text(w // 2, h - 32, text=msg, font=("Arial", 11, "bold"), fill="white")
+
     def run_algorithm(self):
         initial_state = (self.initial_environment, self.initial_x, self.initial_y)
         algo = self.algo_var.get()
         
         self.log(f"--- Bắt đầu mô phỏng: {algo} ---")
+
+        # ── TICTACTOE MODE ─────────────────────────────────────────
+        if algo in ["Minimax", "Alpha-Beta Pruning"]:
+            self.log(f"Đang chạy {algo} (AI vs AI)...")
+            self.tictactoe_current_player = "X"
+            self.real_tictactoe_board = [row[:] for row in self.tictactoe_board]
+            self.after(0, lambda: self.draw_tictactoe(self.tictactoe_board, None))
+            threading.Thread(target=self.auto_play_tictactoe, daemon=True).start()
+            return
 
         # ── CSP MODE ──────────────────────────────────────────────
         if algo in ("Backtracking Search", "Backtracking + AC-3", "Min-Conflicts"):
@@ -612,7 +795,14 @@ class VacuumApp(tk.Tk):
             return
 
         # ── VACUUM MODE ───────────────────────────────────────────
-        path = []
+        import time
+        import algorithms.common as common
+        common.nodes_generated = 0
+        common.max_frontier_size = 0
+        common.current_terrain_matrix = self.terrain_matrix
+        
+        start_time = time.time()
+        
         if algo == "BFS 1 (Cơ bản)":
             path = bfs1(initial_state)
         elif algo == "BFS 2 (Tối ưu)":
@@ -632,32 +822,42 @@ class VacuumApp(tk.Tk):
         elif algo == "IDA*":
             path = ida_star(initial_state)
         elif algo == "Leo đồi đơn giản":
-            path = simple_hill_climbing(initial_state)
+            path = simple_hill_climbing(initial_state, log_callback=self.log)
         elif algo == "Leo đồi dốc nhất":
-            path = steepest_ascent_hill_climbing(initial_state)
+            path = steepest_ascent_hill_climbing(initial_state, log_callback=self.log)
         elif algo == "Leo đồi ngẫu nhiên":
-            path = stochastic_hill_climbing(initial_state)
+            path = stochastic_hill_climbing(initial_state, log_callback=self.log)
         elif algo == "Leo đồi khởi động lại":
-            path = random_restart_hill_climbing(initial_state)
+            path = random_restart_hill_climbing(initial_state, log_callback=self.log)
         elif algo == "Local Beam Search":
-            path = local_beam_search(initial_state)
+            path = local_beam_search(initial_state, log_callback=self.log)
         elif algo == "Mô phỏng luyện kim":
-            path = simulated_annealing(initial_state)
+            path = simulated_annealing(initial_state, log_callback=self.log)
         elif algo == "Nhìn thấy một phần (DFS)":
-            path = partially_observable_belief_dfs(initial_state)
+            path = partially_observable_belief_dfs(initial_state, log_callback=self.log)
         elif algo == "Không nhìn thấy (DFS)":
-            path = sensorless_belief_dfs(initial_state)
+            path = sensorless_belief_dfs(initial_state, log_callback=self.log)
         elif algo == "HĐ Không xác định":
-            path = and_or_graph_search(initial_state)
-            
+            path = and_or_graph_search(initial_state, log_callback=self.log)
+            end_time = time.time()
             if path == 'failure' or path is None:
-                self.log("Không tìm thấy đường đi (Failure).")
+                self.log("=====================================")
+                self.log(f"KẾT QUẢ TÌM KIẾM: KHÔNG CÓ ĐƯỜNG ĐI")
+                self.log(f" - Thời gian tính toán: {end_time - start_time:.4f} giây")
+                self.log(f" - Số trạng thái đã sinh: {common.nodes_generated}")
+                self.log(f" - Bộ nhớ tối đa (Frontier): {common.max_frontier_size}")
+                self.log("=====================================")
                 self.is_running = False
                 self.after(0, lambda: self.btn_start.configure(state="normal"))
                 return
                 
             self.set_solution_text("Conditional Plan (xem Log)")
-            self.log("Đã tìm thấy Conditional Plan!")
+            self.log("=====================================")
+            self.log(f"KẾT QUẢ TÌM KIẾM: Đã tìm thấy Conditional Plan!")
+            self.log(f" - Thời gian tính toán: {end_time - start_time:.4f} giây")
+            self.log(f" - Số trạng thái đã sinh: {common.nodes_generated}")
+            self.log(f" - Bộ nhớ tối đa (Frontier): {common.max_frontier_size}")
+            self.log("=====================================")
             
             # Now simulate it
             from algorithms.complex_env.and_or_search import slippery_results
@@ -669,7 +869,7 @@ class VacuumApp(tk.Tk):
                 action, subplans = current_plan[0], current_plan[1]
                 
                 speed = self.slider_speed.get()
-                delay = max(0.05, 1.0 / (speed * 2))
+                delay = max(0.01, 1.0 / (speed * 5))
                 time.sleep(delay)
                 
                 self.log(f"-> Thực hiện: {action}")
@@ -718,9 +918,15 @@ class VacuumApp(tk.Tk):
             self.is_running = False
             self.after(0, lambda: self.btn_start.configure(state="normal"))
             return
-            
+        end_time = time.time()
+        
         if path is None:
-            self.log("Không tìm thấy đường đi.")
+            self.log("=====================================")
+            self.log(f"KẾT QUẢ TÌM KIẾM: KHÔNG CÓ ĐƯỜNG ĐI")
+            self.log(f" - Thời gian tính toán: {end_time - start_time:.4f} giây")
+            self.log(f" - Số trạng thái đã sinh: {common.nodes_generated}")
+            self.log(f" - Bộ nhớ tối đa (Frontier): {common.max_frontier_size}")
+            self.log("=====================================")
             self.is_running = False
             self.after(0, lambda: self.btn_start.configure(state="normal"))
             return
@@ -740,8 +946,27 @@ class VacuumApp(tk.Tk):
                 elif action == "RIGHT": curr_y += 1
                 total_cost += COST_RUG if self.terrain_matrix[curr_x][curr_y] == "Rug" else COST_NORMAL
                 
-        self.log(f"Đã tìm thấy giải pháp gồm {len(path)} bước.")
-        self.log(f"Tổng chi phí đường đi: {total_cost}")
+        # Phân biệt local search vs. tìm kiếm kinh điển
+        is_local_search = algo in [
+            "Leo đồi đơn giản", "Leo đồi dốc nhất", "Leo đồi ngẫu nhiên",
+            "Leo đồi khởi động lại", "Local Beam Search", "Mô phỏng luyện kim"
+        ]
+        self.log("=====================================")
+        self.log(f"KẾT QUẢ ({algo}):")
+        if is_local_search:
+            # Local search: không dùng frontier/nodes_generated theo nghĩa thông thường
+            self.log(f" - Loại: Tìm kiếm cục bộ (không theo dõi frontier)")
+            self.log(f" - Số bước đi trong lời giải: {len(path)}")
+            self.log(f" - Tổng chi phí (Cost): {total_cost}")
+            self.log(f" - Thời gian tính toán: {end_time - start_time:.4f} giây")
+            self.log(f" - (Chi tiết từng bước xem ở log phía trên)")
+        else:
+            self.log(f" - Số trạng thái đã sinh: {common.nodes_generated}")
+            self.log(f" - Bộ nhớ tối đa (Frontier): {common.max_frontier_size}")
+            self.log(f" - Số bước đi (Độ sâu): {len(path)}")
+            self.log(f" - Tổng chi phí (Cost): {total_cost}")
+            self.log(f" - Thời gian tính toán: {end_time - start_time:.4f} giây")
+        self.log("=====================================")
         self.log("Bắt đầu di chuyển...")
         
         # Mô phỏng từng bước
@@ -776,7 +1001,7 @@ class VacuumApp(tk.Tk):
                 if not self.is_running: break
                 
                 speed = self.slider_speed.get()
-                delay = max(0.05, 1.0 / (speed * 2))
+                delay = max(0.01, 1.0 / (speed * 5))
                 time.sleep(delay)
                 
                 self.log(f"Bước {i+1}: {action}")
@@ -791,7 +1016,7 @@ class VacuumApp(tk.Tk):
                 
                 # Slider speed logic
                 speed = self.slider_speed.get()
-                delay = max(0.05, 1.0 / (speed * 2))
+                delay = max(0.01, 1.0 / (speed * 5))
                 time.sleep(delay)
                 
                 self.log(f"Bước {i+1}: {action}")

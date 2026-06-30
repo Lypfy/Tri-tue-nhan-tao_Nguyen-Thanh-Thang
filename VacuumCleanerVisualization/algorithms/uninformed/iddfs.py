@@ -9,6 +9,9 @@ def dls(node, limit):
     explored = {node.state: 0}
     
     while frontier:
+        import algorithms.common as common
+        common.max_frontier_size = max(common.max_frontier_size, len(frontier))
+        
         current_node, depth = frontier.pop()
         
         if is_goal(current_node.state):
