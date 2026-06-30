@@ -1,9 +1,8 @@
 # Trí Tuệ Nhân Tạo – Mô Phỏng Các Thuật Toán
 
 ## Thông tin dự án
-- **Họ và tên:** [Tên sinh viên]
-- **MSSV:** [Mã số sinh viên]
-- **Ngày:** [Ngày tháng năm]
+- **Họ và tên:** Nguyễn Thành Thắng
+- **MSSV:** 24110332
 
 Dự án này là tập hợp các mô phỏng trực quan, có đồ họa dành cho các thuật toán AI. Giao diện trực quan giúp người dùng theo dõi và hiểu rõ từng bước chạy của các thuật toán trong nhiều bài toán khác nhau, chủ yếu tập trung vào:
 - **Bài toán Máy Hút Bụi (Vacuum Cleaner):** Môi trường lưới để các đặc vụ (agent) dọn dẹp bụi bẩn.
