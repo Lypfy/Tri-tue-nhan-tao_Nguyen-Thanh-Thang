@@ -150,7 +150,7 @@ def backtracking_search():
         if var is None:
             return False
 
-        for color in domains[var]:
+        for color in list(domains[var]):
             if is_consistent(var, color):
                 # Snapshot domains trước khi gán
                 domains_backup = {d: list(v) for d, v in domains.items()}

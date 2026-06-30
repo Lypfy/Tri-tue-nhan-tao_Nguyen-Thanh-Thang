@@ -38,7 +38,11 @@ Dưới đây là danh sách các nhóm thuật toán đã được cài đặt 
 
 | Thuật toán | Minh họa (GIF) | Mô tả ngắn |
 | :--- | :---: | :--- |
-| **Leo đồi (Hill Climbing)** | ![Hill Climbing](docs/hill_climbing.gif) | Luôn chọn trạng thái lân cận tốt nhất để đi tiếp, dễ bị kẹt ở cực đại cục bộ. |
+| **Leo đồi đơn giản (Simple Hill Climbing)** | ![Simple Hill Climbing](docs/simple_hill_climbing.gif) | Đánh giá từng lân cận và di chuyển ngay đến trạng thái đầu tiên tốt hơn hiện tại. |
+| **Leo đồi dốc nhất (Steepest-Ascent Hill Climbing)** | ![Steepest Ascent](docs/steepest_ascent_hill_climbing.gif) | Đánh giá tất cả lân cận và chọn trạng thái tốt nhất. Vẫn dễ kẹt ở cực đại cục bộ. |
+| **Leo đồi ngẫu nhiên (Stochastic Hill Climbing)** | ![Stochastic Hill Climbing](docs/stochastic_hill_climbing.gif) | Chọn ngẫu nhiên một trong số các trạng thái lân cận tốt hơn trạng thái hiện tại. |
+| **Leo đồi khởi động lại ngẫu nhiên (Random-Restart Hill Climbing)** | ![Random Restart](docs/random_restart_hill_climbing.gif) | Thực hiện leo đồi nhiều lần từ các trạng thái xuất phát ngẫu nhiên khác nhau. |
+| **Tìm kiếm chùm cục bộ (Local Beam Search)** | ![Local Beam](docs/local_beam_search.gif) | Duy trì k trạng thái tốt nhất thay vì 1, cho phép khám phá không gian rộng hơn. |
 | **Tôi luyện mô phỏng (Simulated Annealing)** | ![Simulated Annealing](docs/simulated_annealing.gif) | Cho phép di chuyển đến trạng thái xấu hơn ở giai đoạn đầu để tránh kẹt ở cực đại cục bộ. |
 
 ### 4. Môi trường phức tạp (Complex Environments)
@@ -65,6 +69,8 @@ Dưới đây là danh sách các nhóm thuật toán đã được cài đặt 
 | Thuật toán | Minh họa (GIF) | Mô tả ngắn |
 | :--- | :---: | :--- |
 | **Minimax** | ![Minimax](docs/minimax.gif) | Duyệt cây trò chơi, một người chơi cố gắng tối đa hóa điểm số, người kia cố gắng tối thiểu hóa. |
+| **Cắt tỉa Alpha-Beta (Alpha-Beta Pruning)** | ![Alpha-Beta](docs/alphabeta.gif) | Bản tối ưu của Minimax, cắt bỏ các nhánh con không cần thiết (không thể ảnh hưởng đến kết quả) để duyệt nhanh hơn. |
+| **Expectimax** | ![Expectimax](docs/expectimax.gif) | Biến thể của Minimax dành cho các trò chơi có yếu tố ngẫu nhiên (chances), sử dụng giá trị kỳ vọng (expected utility) thay vì giá trị tối thiểu. |
 
 ---
 

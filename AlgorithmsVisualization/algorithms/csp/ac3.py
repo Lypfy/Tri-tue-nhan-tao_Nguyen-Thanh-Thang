@@ -39,13 +39,15 @@ def mac_search():
 
     def revise(xi, xj, local_domains):
         """
-        Xóa các giá trị trong domains[xi] nếu không có giá trị tương ứng trong domains[xj] thỏa mãn.
+        Xóa giá trị x khỏi domains[xi] nếu không tồn tại
+        giá trị y nào trong domains[xj] thỏa ràng buộc khác màu (y != x).
+        Với map coloring: ràng buộc là xi != xj,
+        vì vậy loại x khi mọi y trong domain[xj] đều bằng x.
         """
         revised = False
         for x in list(local_domains[xi]):
-            # Có giá trị y nào trong domains[xj] khác x không?
-            # Vì ràng buộc là khác màu: x != y
-            if not any(y != x for y in local_domains[xj]):
+            # Giữ x nếu tồn tại ít nhất 1 giá trị y trong xj mà y != x
+            if all(y == x for y in local_domains[xj]):
                 local_domains[xi].remove(x)
                 revised = True
                 steps.append({
@@ -73,7 +75,7 @@ def mac_search():
         if var is None:
             return False
 
-        for color in domains[var]:
+        for color in list(domains[var]):
             if is_consistent(var, color):
                 domains_backup = {d: list(v) for d, v in domains.items()}
 

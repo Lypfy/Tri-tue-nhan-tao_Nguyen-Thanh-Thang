@@ -102,6 +102,41 @@ def alpha_beta_score(board, is_maximizer, alpha=-math.inf, beta=math.inf, player
                     log_callback(f"  [!] Cắt tỉa tại độ sâu {depth} (Alpha {alpha} >= Beta {beta})")
                 break
         return best_score, best_move
+
+def expectimax_score(board, is_maximizer, player_x="X", player_o="O", depth=0, log_callback=None):
+    winner = check_winner(board)
+    if winner == player_x: return 10, None
+    elif winner == player_o: return -10, None
+    elif winner == "Draw": return 0, None
+
+    moves = get_available_moves(board)
+    best_move = None
+    
+    if is_maximizer:
+        best_score = -math.inf
+        for r, c in moves:
+            board[r][c] = player_x
+            score, _ = expectimax_score(board, False, player_x, player_o, depth + 1, log_callback)
+            board[r][c] = ""
+            if score > best_score:
+                best_score = score
+                best_move = (r, c)
+            
+            if depth == 0 and log_callback:
+                log_callback(f"[Gốc] Xét nước ({r},{c}) -> Điểm kỳ vọng: {score:.2f}")
+                
+        return best_score, best_move
+    else:
+        # Expectimax: Nút Chance (đối thủ chơi ngẫu nhiên, không chọn min)
+        expected_score = 0
+        prob = 1.0 / len(moves)
+        for r, c in moves:
+            board[r][c] = player_o
+            score, _ = expectimax_score(board, True, player_x, player_o, depth + 1, log_callback)
+            board[r][c] = ""
+            expected_score += score * prob
+            
+        return expected_score, None
 def minimax_generator(board, is_maximizer, player_x="X", player_o="O", depth=0):
     """
     Generator that yields intermediate steps of the minimax algorithm.

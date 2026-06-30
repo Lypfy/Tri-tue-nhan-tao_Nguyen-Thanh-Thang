@@ -169,7 +169,7 @@ class VacuumApp(tk.Tk):
         self.acc_csp.pack(fill="x", padx=10, pady=5)
         
         self.acc_adversarial = AccordionMenu(self.sidebar, "Tìm kiếm đối kháng",
-                                             ["Minimax", "Alpha-Beta Pruning"], self.algo_var)
+                                             ["Minimax", "Alpha-Beta Pruning", "Expectimax"], self.algo_var)
         self.acc_adversarial.pack(fill="x", padx=10, pady=5)
         
         # Difficulty Dropdown
@@ -179,7 +179,7 @@ class VacuumApp(tk.Tk):
         
         # Hàm xử lý sự kiện đổi thuật toán
         def on_algo_change(*args):
-            if self.algo_var.get() in ["Minimax", "Alpha-Beta Pruning"]:
+            if self.algo_var.get() in ["Minimax", "Alpha-Beta Pruning", "Expectimax"]:
                 self.lbl_diff.pack(pady=(10, 0))
                 self.combo_difficulty.pack(pady=5, padx=20, fill="x")
             else:
@@ -423,7 +423,7 @@ class VacuumApp(tk.Tk):
         return
 
     def auto_play_tictactoe(self):
-        from algorithms.adversarial_search.minimax import minimax_score, alpha_beta_score, check_winner, get_available_moves
+        from algorithms.adversarial_search.minimax import minimax_score, alpha_beta_score, expectimax_score, check_winner, get_available_moves
         import time
         import random
         
@@ -439,6 +439,8 @@ class VacuumApp(tk.Tk):
             algo = self.algo_var.get()
             if algo == "Alpha-Beta Pruning":
                 best_score, best_move = alpha_beta_score(self.tictactoe_board, is_max, log_callback=self.log)
+            elif algo == "Expectimax":
+                best_score, best_move = expectimax_score(self.tictactoe_board, is_max, log_callback=self.log)
             else:
                 best_score, best_move = minimax_score(self.tictactoe_board, is_max)
             
@@ -447,7 +449,11 @@ class VacuumApp(tk.Tk):
             
             moves = get_available_moves(self.tictactoe_board)
             if moves:
-                if diff_level == "Dễ" and random.random() < 0.7:
+                # Nếu Expectimax đóng vai trò Chance Node (is_max=False), best_move sẽ là None
+                if best_move is None:
+                    best_move = random.choice(moves)
+                    self.log(f"AI ({player}) là nút Chance, đánh ngẫu nhiên")
+                elif diff_level == "Dễ" and random.random() < 0.7:
                     best_move = random.choice(moves)
                     self.log(f"AI ({player}) chọn ngẫu nhiên (Dễ)")
                 elif diff_level == "Trung bình" and random.random() < 0.3:
@@ -743,7 +749,7 @@ class VacuumApp(tk.Tk):
         self.log(f"--- Bắt đầu mô phỏng: {algo} ---")
 
         # ── TICTACTOE MODE ─────────────────────────────────────────
-        if algo in ["Minimax", "Alpha-Beta Pruning"]:
+        if algo in ["Minimax", "Alpha-Beta Pruning", "Expectimax"]:
             self.log(f"Đang chạy {algo} (AI vs AI)...")
             self.tictactoe_current_player = "X"
             self.real_tictactoe_board = [row[:] for row in self.tictactoe_board]
@@ -769,7 +775,10 @@ class VacuumApp(tk.Tk):
             for i, step in enumerate(steps):
                 if not self.is_running:
                     break
-                speed = self.slider_speed.get()
+                try:
+                    speed = float(self.slider_speed.get())
+                except (ValueError, TypeError):
+                    speed = 1.0
                 delay = max(0.03, 0.5 / (speed * 2))
                 time.sleep(delay)
 
@@ -795,7 +804,6 @@ class VacuumApp(tk.Tk):
             return
 
         # ── VACUUM MODE ───────────────────────────────────────────
-        import time
         import algorithms.common as common
         common.nodes_generated = 0
         common.max_frontier_size = 0

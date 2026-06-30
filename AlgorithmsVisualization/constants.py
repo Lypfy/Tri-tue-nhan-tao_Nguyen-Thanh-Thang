@@ -116,27 +116,22 @@ ENVIRONMENTS = {
         ]
     },
 
-    # Môi trường với nhiều vết bẩn phân tán đều, robot ở trung tâm.
-    # Phù hợp với Local Beam Search: k beams có thể "tản ra" theo nhiều hướng
-    # song song, thể hiện rõ lợi thế của việc duy trì k trạng thái cùng lúc.
+    # Môi trường 5x5 bất đối xứng dành cho Local Beam Search.
+    # Thiết kế để robot có nhiều hướng đi với các cực trị cục bộ khác nhau.
     "Phòng Beam (5x5)": {
         "TYPE": "Grid",
         "GRID_SIZE": 5,
         "INITIAL_ENVIRONMENT": (
-            ("Dirty", "Clean", "Dirty", "Clean", "Dirty"),
-            ("Clean", "Clean", "Clean", "Clean", "Clean"),
             ("Dirty", "Clean", "Clean", "Clean", "Dirty"),
-            ("Clean", "Clean", "Clean", "Clean", "Clean"),
-            ("Dirty", "Clean", "Dirty", "Clean", "Dirty"),
+            ("Clean", "Dirty", "Clean", "Clean", "Clean"),
+            ("Clean", "Clean", "Clean", "Dirty", "Clean"),
+            ("Clean", "Clean", "Dirty", "Clean", "Clean"),
+            ("Dirty", "Clean", "Clean", "Clean", "Dirty"),
         ),
-        "INITIAL_X": 2,
-        "INITIAL_Y": 2,
+        "INITIAL_X": 0,
+        "INITIAL_Y": 0,
         "TERRAIN_MATRIX": [
-            ["Normal", "Normal", "Normal", "Normal", "Normal"],
-            ["Normal", "Normal", "Normal", "Normal", "Normal"],
-            ["Normal", "Normal", "Normal", "Normal", "Normal"],
-            ["Normal", "Normal", "Normal", "Normal", "Normal"],
-            ["Normal", "Normal", "Normal", "Normal", "Normal"],
+            ["Normal"] * 5 for _ in range(5)
         ]
     },
     

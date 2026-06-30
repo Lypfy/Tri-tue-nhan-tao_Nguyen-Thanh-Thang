@@ -13,13 +13,12 @@ def objective(state):
     if not dirty_cells:
         return 0
         
-    # SỬ DỤNG TỔNG BÌNH PHƯƠNG KHOẢNG CÁCH (Sum of Squared Distances)
-    # Điều này tạo ra một "hố lõm" tại vị trí trung bình (trọng tâm) của các vết bẩn.
-    # Nếu robot đi vào trọng tâm này, mọi bước đi ra xa đều làm tăng khoảng cách.
-    # Nhờ đó, robot sẽ bị KẸT TẠI CỰC TRỊ CỤC BỘ (Local Optimum) nếu vết bẩn nằm tản mác.
-    sum_sq_dist = sum((x - r)**2 + (y - c)**2 for r, c in dirty_cells)
+    # THAY ĐỔI: Sử dụng khoảng cách Manhattan đến vết bẩn GẦN NHẤT.
+    # Thay vì dùng tổng bình phương (tạo ra "hố lõm" ở trọng tâm và làm thuật toán kẹt),
+    # khoảng cách đến vết bẩn gần nhất sẽ luôn hướng robot đi tới làm sạch từng vết một.
+    min_dist = min(abs(x - r) + abs(y - c) for r, c in dirty_cells)
     
-    return len(dirty_cells) * 1000 + sum_sq_dist
+    return len(dirty_cells) * 1000 + min_dist
 
 def get_neighbors(node):
     neighbors = []
@@ -190,7 +189,8 @@ def local_beam_search(initial_state, k=3, log_callback=None):
             log_callback(msg)
 
     log(f"Khởi động Local Beam Search với k = {k} beams")
-    current_nodes = [Node(initial_state) for _ in range(k)]
+    # Khởi đầu với 1 node gốc để từ đó phân nhánh ra k states khác nhau
+    current_nodes = [Node(initial_state)]
     iteration = 0
 
     while True:
@@ -216,17 +216,28 @@ def local_beam_search(initial_state, k=3, log_callback=None):
             log(f"  Không còn successor. Objective tốt nhất = {objective(best_node.state)}")
             return solution(best_node) if best_node.parent else None
 
-        # Chọn k successors tốt nhất
-        all_successors.sort(key=lambda n: objective(n.state))
-        best_current_obj = min(objective(n.state) for n in current_nodes)
-        best_successor_obj = objective(all_successors[0].state)
+        # Lọc để đảm bảo các beam không bị trùng lặp trạng thái
+        unique_successors = {}
+        for succ in all_successors:
+            if succ.state not in unique_successors:
+                unique_successors[succ.state] = succ
+                
+        unique_list = list(unique_successors.values())
+        if not unique_list:
+            best_node = min(current_nodes, key=lambda n: objective(n.state))
+            return solution(best_node) if best_node.parent else None
 
-        log(f"  Tổng successor: {len(all_successors)} | Best successor Objective: {best_successor_obj} | Current best: {best_current_obj}")
+        # Chọn k successors tốt nhất
+        unique_list.sort(key=lambda n: objective(n.state))
+        best_current_obj = min(objective(n.state) for n in current_nodes)
+        best_successor_obj = objective(unique_list[0].state)
+
+        log(f"  Tổng successor (unique): {len(unique_list)} | Best successor Objective: {best_successor_obj} | Current best: {best_current_obj}")
 
         if best_successor_obj >= best_current_obj:
             best_node = min(current_nodes, key=lambda n: objective(n.state))
             log(f"  ⚠ Cục bộ tối ưu! Objective = {objective(best_node.state)} | Không có successor nào tốt hơn.")
             return solution(best_node) if best_node.parent else None
 
-        current_nodes = all_successors[:k]
-        log(f"  → Chọn {k} beams tốt nhất: Objectives = {[objective(n.state) for n in current_nodes]}")
+        current_nodes = unique_list[:k]
+        log(f"  → Chọn {min(k, len(current_nodes))} beams tốt nhất: Objectives = {[objective(n.state) for n in current_nodes]}")
