@@ -19,8 +19,8 @@ Dưới đây là danh sách các nhóm thuật toán đã được cài đặt 
 
 | Thuật toán | Minh họa (GIF) | Mô tả ngắn |
 | :--- | :---: | :--- |
-| **Tìm kiếm theo chiều rộng (BFS)** | ![BFS](docs/bfs.gif) | Mở rộng các nút nông nhất trước. Đảm bảo tìm được đường đi ngắn nhất (số bước ít nhất). |
-| **Tìm kiếm theo chiều sâu (DFS)** | ![DFS](docs/dfs.gif) | Đi sâu vào từng nhánh trước khi quay lui. Phù hợp cho không gian lớn nhưng có thể bị kẹt. |
+| **Tìm kiếm theo chiều rộng (BFS)** | ![BFS](docs/bfs1.gif) | Mở rộng các nút nông nhất trước. Đảm bảo tìm được đường đi ngắn nhất (số bước ít nhất). |
+| **Tìm kiếm theo chiều sâu (DFS)** | ![DFS](docs/dfs1.gif) | Đi sâu vào từng nhánh trước khi quay lui. Phù hợp cho không gian lớn nhưng có thể bị kẹt. |
 | **Tìm kiếm sâu dần (IDDFS)** | ![IDDFS](docs/iddfs.gif) | Kết hợp ưu điểm của BFS (tối ưu) và DFS (tiết kiệm bộ nhớ) bằng cách giới hạn độ sâu lặp lại. |
 | **Tìm kiếm chi phí đồng nhất (UCS)** | ![UCS](docs/ucs.gif) | Luôn mở rộng nút có đường đi từ trạng thái đầu với chi phí thấp nhất. |
 
@@ -29,9 +29,9 @@ Dưới đây là danh sách các nhóm thuật toán đã được cài đặt 
 
 | Thuật toán | Minh họa (GIF) | Mô tả ngắn |
 | :--- | :---: | :--- |
-| **Tìm kiếm A* (A-Star)** | ![A Star](docs/astar.gif) | Kết hợp chi phí thực tế (g) và chi phí ước lượng (h) để tìm đường đi tối ưu hiệu quả. |
+| **Tìm kiếm A* (A-Star)** | ![A Star](docs/a_star.gif) | Kết hợp chi phí thực tế (g) và chi phí ước lượng (h) để tìm đường đi tối ưu hiệu quả. |
 | **Tìm kiếm tham lam (GBFS)** | ![GBFS](docs/gbfs.gif) | Chỉ dựa vào hàm heuristic (h) để tiến tới đích nhanh nhất nhưng không đảm bảo tối ưu. |
-| **A* sâu dần (IDA*)** | ![IDA Star](docs/idastar.gif) | Phiên bản tiết kiệm bộ nhớ của A*, sử dụng giới hạn chi phí thay vì giới hạn độ sâu. |
+| **A* sâu dần (IDA*)** | ![IDA Star](docs/ida_star.gif) | Phiên bản tiết kiệm bộ nhớ của A*, sử dụng giới hạn chi phí thay vì giới hạn độ sâu. |
 
 ### 3. Tìm kiếm cục bộ (Local Search)
 *Khởi tạo từ một trạng thái ngẫu nhiên và cải thiện trạng thái hiện tại bằng cách di chuyển đến các trạng thái lân cận tốt hơn.*
