@@ -73,13 +73,6 @@ Dưới đây là danh sách các nhóm thuật toán đã được cài đặt 
 
 ---
 
-## 🚀 Cách thêm GIF của bạn
-
-1. Tạo hoặc sử dụng thư mục có tên `docs/` trong dự án.
-2. Lưu các file ảnh chụp luồng chạy (định dạng `.gif`) vào thư mục này.
-3. Trong bảng trên, hãy sửa lại đường dẫn trong các thẻ `![Alt text](docs/your_image.gif)` cho trùng với tên file thực tế của bạn.
-4. Bạn cũng có thể điều chỉnh hoặc thêm các mô tả ngắn tương ứng nếu muốn rõ ràng hơn.
-
 ## 🛠️ Cách chạy dự án
 
 ```bash
